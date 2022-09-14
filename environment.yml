@@ -1,0 +1,22 @@
+name: thesis
+channels:
+ - conda-forge
+
+dependencies:
+- numpy
+- matplotlib
+- pathlib
+- rasterio
+- xarray 
+- rioxarray
+- ipykernel
+- scipy
+- netCDF4
+- h5netcdf
+- cartopy 
+- geoviews
+- hvplot
+- jupyterlab
+- fiona 
+- geopandas
+- dask
