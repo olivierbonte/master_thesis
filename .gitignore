@@ -7,3 +7,5 @@ data/
 */temp_*/
 
 */.ipynb_checkpoints/*
+
+__pycache__/
