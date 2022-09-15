@@ -184,10 +184,10 @@ filepath_nc_processed, filepath_temp_data, epsg, return_bool = False):
 
     """
     ds = read_netcdf(filepath_nc_raw, epsg)
-    filepath_out = filepath_temp_data +'/raw.tiff'
+    filepath_out = filepath_temp_data + '/' + filepath_nc_raw.name + '_raw.tiff'
     raster_rio_tiff = netcdf_to_tiff(ds, filepath_out)
-    filepath_masked_out = filepath_temp_data + '/masked.tiff'
-    filepath_temp_nc = filepath_temp_data + '/masked.nc'
+    filepath_masked_out = filepath_temp_data + '/' + filepath_nc_raw.name + '_masked.tiff'
+    filepath_temp_nc = filepath_temp_data + '/' + filepath_nc_raw.name + '_masked.nc'
     mask_tiff_with_shape(raster_rio_tiff, filepath_shapefile, filepath_masked_out)
     if return_bool:
         masked_xarr = tiff_to_netcdf(filepath_masked_out, filepath_nc_processed, filepath_temp_nc,return_bool,
