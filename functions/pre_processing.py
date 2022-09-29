@@ -1,4 +1,4 @@
-from calendar import month
+
 import xarray as xr
 from pathlib import Path
 import rasterio
@@ -9,6 +9,7 @@ from osgeo import gdal
 import geopandas as gpd
 import datetime
 import netCDF4
+import os
 
 def read_netcdf(filepath, epsg, transpose = False):
     """Read in 1 netCDF file and add geographic information
@@ -64,7 +65,7 @@ def netcdf_to_tiff(xarr_ds,filepath_out,transpose = True):
     return raster_rio_tiff
 
 def tiff_to_netcdf(filepath_input_tiff, filepath_output_nc, filepath_temp_nc, return_bool = True,
-add_time = True, filepath_nc_raw = None):
+add_dims = True, filepath_nc_raw = None, remove_nan = False):
     """Converts GeoTIFF to NetCDF with GDAL
     
     Parameters
@@ -75,11 +76,13 @@ add_time = True, filepath_nc_raw = None):
 
     return_bool: bool, default = True
         if True, an xarray is returned!
-    add_time: bool, default = True
-        if True, adds a time dimension to the NetCDF output
+    add_dims: bool, default = True
+        if True, adds a time, orbit and satellite dimension to the NetCDF output
     filepath_nc_raw: pathlib.Path, default = None
         location of raw Sentinel data for info on date, only required
-        if add_time is True
+        if add_dims is True
+    remove_nan: bool, default = False
+        if True, NetCDF containing only nans for g0vv will be removed
 
     Returns
     -------
@@ -91,19 +94,40 @@ add_time = True, filepath_nc_raw = None):
     xarr_ds = xr.open_dataset(filepath_temp_nc)#, engine = 'netcdf4')
     xarr_ds.close()
     xarr_ds2 = xarr_ds.rename({"Band1":"g0vv","Band2":"g0vh","Band3":"lia"})
-    if add_time:
+    if add_dims:
         if filepath_nc_raw is None:
             raise TypeError("""filepath_nc_raw can not be None when add_time is
             True, supply raw filepath as pathlib.Path""")
         year = int(filepath_nc_raw.name[0:4])
         month = int(filepath_nc_raw.name[4:6])
         day = int(filepath_nc_raw.name[6:8])
-        xarr_ds2 = xarr_ds2.expand_dims(time = [datetime.datetime(year, month, day)])
-    #import pdb; pdb.set_trace(),
+        if "_A_" in filepath_nc_raw.name:
+            hour = 18
+        if "_D_" in filepath_nc_raw.name:
+            hour = 6
+        xarr_ds2 = xarr_ds2.expand_dims(time = [datetime.datetime(year, month, day, hour)])
+        #xarr_ds2 = xarr_ds2.expand_dims(orbit = [np.array(filepath_nc_raw.name[-6:-3], dtype = np.int32)])
+        #xarr_ds2 = xarr_ds2.expand_dims(satellite = [filepath_nc_raw.name[9:12]])
+        #Do not change dimensions!! just add these as variables
+        xarr_ds2['satellite'] = xr.DataArray(
+            data = np.array([filepath_nc_raw.name[9:14]]), 
+            dims = ('time'), 
+            coords={"time":[datetime.datetime(year, month, day, hour)]}
+        )
+        xarr_ds2['orbit'] = xr.DataArray(
+            data = [np.array(filepath_nc_raw.name[-6:-3], dtype = np.int32)], 
+            dims = ('time'), 
+            coords={"time":[datetime.datetime(year, month, day, hour)]}
+        )
     xarr_ds2.to_netcdf(filepath_output_nc, mode = 'w')
     if return_bool:
         return xarr_ds2
     xarr_ds2.close()
+    if remove_nan:
+        if np.isnan(xarr_ds2['g0vv'].values).all():
+            os.remove(filepath_output_nc)
+
+
 
 
 
@@ -120,6 +144,7 @@ def mask_tiff_with_shape(raster_rio_tiff, filepath_shapefile, filepath_out, noda
     filepath_out: str | pathlib.Path
         Location to write the clipped and masked GeoTIFF to
     nodata: int | float, default = -9999
+
 
     Returns
     -------
@@ -159,7 +184,7 @@ def mask_tiff_with_shape(raster_rio_tiff, filepath_shapefile, filepath_out, noda
     return masked_tiff
 
 def pre_processing_pipeline(filepath_nc_raw, filepath_shapefile,
-filepath_nc_processed, filepath_temp_data, epsg, return_bool = False):
+filepath_nc_processed, filepath_temp_data, epsg, return_bool = False, remove_nan = False):
     """Function encapsulating entire pipeline of from raw NetCDF to clipped and
     masked NetCDF according to to given shapefile.
 
@@ -175,11 +200,14 @@ filepath_nc_processed, filepath_temp_data, epsg, return_bool = False):
         Location where to store the temporary data
     epsg: int
         epsg code of the desired CRS
+    return_bool: bool, default = False
+        if True, returns the processed xarray.Dataset
+    remove_nan: bool, default = False
+        if True, NetCDF containing only nans for g0vv will be removed
 
     Returns
     --------
-    return_bool: bool, default = False
-        if True, returns the processed xarray.Dataset
+    cf. return bool
 
 
     """
@@ -191,8 +219,8 @@ filepath_nc_processed, filepath_temp_data, epsg, return_bool = False):
     mask_tiff_with_shape(raster_rio_tiff, filepath_shapefile, filepath_masked_out)
     if return_bool:
         masked_xarr = tiff_to_netcdf(filepath_masked_out, filepath_nc_processed, filepath_temp_nc,return_bool,
-        add_time= True,filepath_nc_raw = filepath_nc_raw)
+        add_dims= True,filepath_nc_raw = filepath_nc_raw, remove_nan=remove_nan)
         return masked_xarr
     else:
         tiff_to_netcdf(filepath_masked_out, filepath_nc_processed, filepath_temp_nc, return_bool,
-        add_time= True, filepath_nc_raw = filepath_nc_raw)
+        add_dims= True, filepath_nc_raw = filepath_nc_raw, remove_nan=remove_nan)
