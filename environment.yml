@@ -20,3 +20,4 @@ dependencies:
 - fiona 
 - geopandas
 - dask
+- seaborn
