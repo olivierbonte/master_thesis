@@ -2,7 +2,7 @@
 load('data/inputs.mat')
 load('data/paramPDM.mat')
 uren = length(inputs.P);
-Q_out = PDM(inputs,paramPDM); %input op uurbasis, output op dagbasis
+[Q_out, Sb] = PDM_eigen(inputs,paramPDM); %input op uurbasis, output op dagbasis
 dagen = length(Q_out);
 Q_obs = inputs.observations;
 
@@ -16,6 +16,8 @@ legend('PDM voorspelling','observatie')
 %waarnemingen
 
 figure()
-plot(inputs.P)
+plot(Sb)
+%figure()
+%plot(inputs.P)
 writematrix(Q_out,'output/Qmod.csv')
 

@@ -1,4 +1,4 @@
-function [Qmod] = PDM_eigen(inputs,X)
+function [Qmod, Sb] = PDM_eigen(inputs,X)
 
 
  P=inputs.P; 
@@ -17,7 +17,7 @@ uren=length(P);
 Ea      =zeros(uren,1); %mm, de actuele evapotranspiratie (niet potentieel)
 Qd      =zeros(uren,1); %mm/u, de direct run off (naar oppervalkte opslag)
 D       =zeros(uren,1); %mm/u drainage naar grondwateropslag
-C       =zeros(uren,1); %mm store capacity (kleine c Moore)
+C       =zeros(uren,1); %mm critical storage capacity (Cstar)
 S1      =zeros(uren,1); %mm opslag obv bodemspanning
 pi      =zeros(uren,1); %mm de netto (effectieve dixit james) neerslag
 Qb      =zeros(uren,1); %mm/u flow UIT DE grondwateroplsag
@@ -198,6 +198,7 @@ for i=i:imax
     qr(i)=-delta1*qr(i-1)-delta2*qr(i-2)+omega0*Qd(i)+omega1*Qd(i-1); %(26) Moore
     of2m3s(i)=qr(i)/1000*Am2/3600; %analoog 
     end
+    %20/10/2022: zou denk beter zijn om Qd/delta_t te doen...
    
     %totale afvoer
     Qmod(i+tdly,1)=Qbm3s(i)+of2m3s(i)+qconst;
