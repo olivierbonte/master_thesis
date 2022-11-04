@@ -234,11 +234,11 @@ def PDM(P, EP, t, area, deltat, deltatout, parameters):
     S3 = S3[:len(tmod)] 
     
     pd_out = pd.DataFrame(
-        {"Time":tmod,
-        "qmodm3s":qmodm3s,
+        {"qmodm3s":qmodm3s,
         "Cstar":Cstar,
         "S1":S1,
         "S3":S3},
         dtype = np.float32
     )
+    pd_out.insert(loc = 0, column = 'Time', value = tmod)
     return pd_out
