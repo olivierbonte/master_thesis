@@ -155,12 +155,17 @@ def mask_tiff_with_shape(raster_rio_tiff, filepath_shapefile, filepath_out, noda
     geom = gpd_df['geometry']
     out_image, out_transform = rasterio.mask.mask(raster_rio_tiff, geom, invert = False, 
     crop = True)
+    import pdb; pdb.set_trace(),
     if len(out_image.shape) == 2:
         count = 1 #number of bands
         height = out_image.shape[0]
         width = out_image.shape[1]
     if len(out_image.shape) == 3:
         if out_image.shape[0] == 3: 
+            count = out_image.shape[0]
+            flattened = out_image[0,:,:]
+        #test_for_processing_landuse
+        else:
             count = out_image.shape[0]
             flattened = out_image[0,:,:]
         height = flattened.shape[0]
