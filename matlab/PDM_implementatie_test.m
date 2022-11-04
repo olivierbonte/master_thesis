@@ -2,7 +2,8 @@
 load('data/inputs.mat')
 load('data/paramPDM.mat')
 uren = length(inputs.P);
-[Q_out, Sb] = PDM_eigen(inputs,paramPDM); %input op uurbasis, output op dagbasis
+[Q_out, Q_out_hr, Sb] = PDM_eigen(inputs,paramPDM); %input op uurbasis
+[Qout_adapted, Q_out_hr_adapted, Sb_adapted] = PDM_eigen_adapted(inputs, paramPDM);
 dagen = length(Q_out);
 Q_obs = inputs.observations;
 
@@ -20,4 +21,6 @@ plot(Sb)
 %figure()
 %plot(inputs.P)
 writematrix(Q_out,'output/Qmod.csv')
+writematrix(Q_out_hr, 'output/Qmod_hr.csv')
+writematrix(Q_out_hr_adapted, 'output/Qmod_adapted_hr.csv')
 

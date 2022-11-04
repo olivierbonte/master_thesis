@@ -1,6 +1,6 @@
-function [Qmod,Qmod_hr, Sb] = PDM_eigen(inputs,X)
+function [Qmod,Qmod_hr, Sb, Qbm3s] = PDM_eigen_adapted(inputs,X)
 
-
+%aanpassing van Matlab functie zodat maximaal analoog aan Python functie
  P=inputs.P; 
  Ep=inputs.Ep; % de potentiële evapotranspiratie (Ei' van Moore)
  A=inputs.A; %Oppervlakte van het stroomgebied (ik denk in km^2),
@@ -19,7 +19,7 @@ Qd      =zeros(uren,1); %mm/u, de direct run off (naar oppervalkte opslag)
 D       =zeros(uren,1); %mm/u drainage naar grondwateropslag
 C       =zeros(uren,1); %mm critical storage capacity (Cstar)
 S1      =zeros(uren,1); %mm opslag obv bodemspanning
-pi      =zeros(uren,1); %mm de netto (effectieve dixit james) neerslag
+pi      =zeros(uren,1); %mm de netto neerslag
 Qb      =zeros(uren,1); %mm/u flow UIT DE grondwateroplsag
 Qbm3s   =zeros(uren,1); %m3/s " " " " in m^3
 of1     =zeros(uren,1); %mm/u niet gebruikt
@@ -141,7 +141,10 @@ for i=i:imax
             Qd(i) = pi(i) - ((cmax - cmin)/(b+1))*(((cmax-C(i-1))/(cmax-cmin))^(b+1)-((cmax-C(i-1)-pi(i))/(cmax-cmin))^(b+1));
         % als de nettoneerslag zorgt voor een volledige verzadiging ...
         else %Dus groter dan cmax nu => ... Nog wat vragen...
-            Qd(i) = pi(i) - ((cmax - cmin)/(b+1))*(((cmax-C(i-1))/(cmax-cmin))^(b+1))+(C(i-1)+pi(i)-cmax);
+            %Qd(i) = pi(i) - ((cmax - cmin)/(b+1))*(((cmax-C(i-1))/(cmax-cmin))^(b+1))+(C(i-1)+pi(i)-cmax);
+            %Mijn aanpassing van deze formule
+            S1t = cmin + (Smax - cmin)*(1- ((cmax - C(i-1))/(cmax - cmin))^(b+1));
+            Qd(i) = pi(i) - (Smax - S1t);
         end
     else
         Qd(i)=0; % er is dus geen directe run off naar het opp reservoir
@@ -231,3 +234,5 @@ Qmod=nanmean(Qmod)'; %nanmean behandelt NaN als missing value en neemt gem
 % % kleine wijziging door Pieter, Q-kolom (3) in mm ipv m3/s
 % Qmm=Qmod.*1000.*3600./Am2;
 % PDMres=[T P Qmm S1./Smax];
+
+

@@ -1,4 +1,4 @@
-function [Qmod] = PDM(inputs,X) 
+function [Qmod] = PDM_Jarne(inputs,X) 
 % PDM model gebaseerd op het artikel van Pieter Cabus (oorspronkelijk uit
 % Moore 2007). Gebruik maken van Pareto distributie om bodemreservoir te
 % beschrijven
