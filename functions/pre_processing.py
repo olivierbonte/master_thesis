@@ -105,6 +105,8 @@ add_dims = True, filepath_nc_raw = None, remove_nan = False):
             hour = 18
         if "_D_" in filepath_nc_raw.name:
             hour = 6
+        else:
+            raise ValueError('No _A_ or _D_ found in filename, check filename')
         xarr_ds2 = xarr_ds2.expand_dims(time = [datetime.datetime(year, month, day, hour)])
         #xarr_ds2 = xarr_ds2.expand_dims(orbit = [np.array(filepath_nc_raw.name[-6:-3], dtype = np.int32)])
         #xarr_ds2 = xarr_ds2.expand_dims(satellite = [filepath_nc_raw.name[9:12]])
@@ -170,6 +172,8 @@ def mask_tiff_with_shape(raster_rio_tiff, filepath_shapefile, filepath_out, noda
             flattened = out_image[0,:,:]
         height = flattened.shape[0]
         width = flattened.shape[1]
+    else:
+        raise Warning('Image has less than 2 or more than 3 dimensions, check raster input')
     
     masked_tiff = rasterio.open(
         filepath_out,
