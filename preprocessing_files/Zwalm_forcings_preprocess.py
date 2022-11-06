@@ -10,6 +10,33 @@ if pad.name != "Python":
     pad_correct = Path("../../Python")
     os.chdir(pad_correct)
 
+################
+# Functions used
+################
+
+def find_00_23(ds):
+    """
+    Find a starting data at 00:00 and end date at 00:23 for a pandas.Series
+    containing time stamps
+
+    Parameters
+    ----------
+    ds: pandas.Series   
+        the timestamps
+
+    Returns
+    -------
+    start_date_00: Timestamp
+    end_date_23: Timestamp
+    """
+    bool_00 = ds.dt.hour == 00
+    index_00 = np.argwhere(bool_00[:][:].to_list())
+    bool_23 = ds.dt.hour == 23
+    index_23 = np.argwhere(bool_23[:][:].to_list())
+    ds= ds[int(index_00[0]):int(index_23[-1])+1]
+    start_date_00 = ds.iloc[0]
+    end_date_23 = ds.iloc[-1]
+    return start_date_00, end_date_23
 
 ##########################################################
 # Original processing: only 1 measurement point considered
@@ -52,14 +79,15 @@ data_zwalm = data_zwalm.merge(data_q, on  = 'Time', how = 'left')
 
 #Adapt so that 1 value per hour: where multiples occur, interpolation is done!
 #Also only use full days: so go from 00:00 to 23:00
-bool_00 = data_zwalm['Time'].dt.hour == 00
-index_00 = np.argwhere(bool_00[:][:].to_list())
-bool_23 = data_zwalm['Time'].dt.hour == 23
-index_23 = np.argwhere(bool_23[:][:].to_list())
-data_zwalm = data_zwalm[int(index_00[0]):int(index_23[-1])+1]
+# bool_00 = data_zwalm['Time'].dt.hour == 00
+# index_00 = np.argwhere(bool_00[:][:].to_list())
+# bool_23 = data_zwalm['Time'].dt.hour == 23
+# index_23 = np.argwhere(bool_23[:][:].to_list())
+# data_zwalm = data_zwalm[int(index_00[0]):int(index_23[-1])+1]
 
-start_date_00 = data_zwalm['Time'].iloc[0]
-end_date_23 = data_zwalm['Time'].iloc[-1]
+# start_date_00 = data_zwalm['Time'].iloc[0]
+# end_date_23 = data_zwalm['Time'].iloc[-1]
+start_date_00, end_date_23 = find_00_23(data_zwalm['Time'])
 
 timeseries = pd.date_range(start= start_date_00, end = end_date_23, freq= 'H')
 time_df = pd.DataFrame({'Time':timeseries})
@@ -89,6 +117,7 @@ flow_zwalm_daily.to_csv("data/Zwalm_data/zwalm_flow_daily.csv", index = False)
 ###########################################################
 # Extended processing: multiple measuring points considered
 ###########################################################
+
 ## Step 1: Inverse Distance Weighing
 list_longitude_WGS84 = []
 list_latitude_WGS84 = []
@@ -103,7 +132,8 @@ for filename in os.listdir(measurements_file):
         list_latitude_WGS84.append(latitude_WGS84.astype(dtype = np.float64).tolist()[0])
         longitude_WGS84 = info_station.loc[['#station_longitude']].values.flatten()
         list_longitude_WGS84.append(longitude_WGS84.astype(dtype = np.float64).tolist()[0])
-        list_station_names.append(info_station.loc[['#station_name']].values.tolist()[0])
+        #list_station_names.append(info_station.loc[['#station_name']].values.tolist()[0])
+        list_station_names.append(info_station.loc['#station_name',1])
 df_stations = pd.DataFrame(
     {'Station': list_station_names,
      'Latitude':list_latitude_WGS84,
@@ -145,4 +175,54 @@ gdf_stations_lambert.to_csv(Path("data\Zwalm_data\zwalm_idw.csv"))
 
 
 ## Step 2: reading in the data
+pd_rain_data_dict = {}
+tmins_list = []
+tmaxs_list = []
+dateparse_waterinfo = lambda x: datetime.datetime.strptime(x, "%Y-%m-%dT%H:%M:%S.")
+for i, filename in enumerate(os.listdir(measurements_file)):
+    #if filename[-3:] == 'csv':
+    print(filename)
+    rain_data = pd.read_csv(measurements_file/filename, sep = ';', skiprows = 8)
+    rain_data['#Timestamp'] = rain_data['#Timestamp'].str.rstrip('+01:00') 
+    rain_data['#Timestamp'] = rain_data['#Timestamp'].str.rstrip('+02:00')
+    rain_data['#Timestamp'] = rain_data['#Timestamp'].apply(dateparse_waterinfo)
+    station_name = list_station_names[i]
+    #P_name = 'P_' + station_name
+    rain_data = rain_data.rename(
+        columns = {'#Timestamp':'Time',
+        'Value':station_name})
 
+    #replace nans by zeros: will NOT be done for the individual stations!
+    #this will only be if ALL stations have no data at that time!
+ 
+    #select data only going from 00 to 23 (analogous to original processing)
+    # bool_00 = rain_data['Time'].dt.hour == 00
+    # index_00 = np.argwhere(bool_00[:][:].to_list())
+    # bool_23 = rain_data['Time'].dt.hour == 23
+    # index_23 = np.argwhere(bool_23[:][:].to_list())
+    # rain_data = rain_data[int(index_00[0]):int(index_23[-1])+1]
+    # start_date_00 = rain_data['Time'].iloc[0]
+    # end_date_23 = rain_data['Time'].iloc[-1]
+    start_date_00, end_date_23 = find_00_23(rain_data['Time'])
+    #idea = make hourly timeseries from start -> end. 
+    # 1) Only include unique values (so 1 value per hour)
+    # 2) If no value present, let it be automatically filled by NaN
+    timeseries = pd.date_range(start= start_date_00, end = end_date_23, freq= 'H')
+    time_df = pd.DataFrame({'Time':timeseries})
+    unique_times, index_unique = np.unique(rain_data['Time'], return_index= True) #select unique timestamps
+    rain_data_unique = rain_data.iloc[index_unique,:]
+    rain_data_hourly = time_df.merge(rain_data_unique, on = 'Time', how = 'left')
+    #again: if this creates NaNs, this is not a problem, since we hope other stations won't have
+    #this problem
+    tmins_list.append(start_date_00)
+    tmaxs_list.append(end_date_23)
+    pd_rain_data_dict.update({station_name:rain_data_hourly})
+
+#now make 1 dataframe
+timeseries_final = pd.date_range(max(tmins_list),min(tmaxs_list), freq = 'H')
+pd_zwalm_hourly_multi = pd.DataFrame({'Time':timeseries_final})
+for i, station in enumerate(list_station_names):
+     pd_zwalm_hourly_multi = pd_zwalm_hourly_multi.merge(
+        pd_rain_data_dict[station][['Time',station]],
+        on = 'Time', how = 'left'
+        )
