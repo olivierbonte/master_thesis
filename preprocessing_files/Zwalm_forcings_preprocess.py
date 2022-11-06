@@ -78,17 +78,7 @@ data_zwalm = data_p.merge(data_ep, on = 'Time', how = 'left')
 data_zwalm = data_zwalm.merge(data_q, on  = 'Time', how = 'left')
 
 #Adapt so that 1 value per hour: where multiples occur, interpolation is done!
-#Also only use full days: so go from 00:00 to 23:00
-# bool_00 = data_zwalm['Time'].dt.hour == 00
-# index_00 = np.argwhere(bool_00[:][:].to_list())
-# bool_23 = data_zwalm['Time'].dt.hour == 23
-# index_23 = np.argwhere(bool_23[:][:].to_list())
-# data_zwalm = data_zwalm[int(index_00[0]):int(index_23[-1])+1]
-
-# start_date_00 = data_zwalm['Time'].iloc[0]
-# end_date_23 = data_zwalm['Time'].iloc[-1]
 start_date_00, end_date_23 = find_00_23(data_zwalm['Time'])
-
 timeseries = pd.date_range(start= start_date_00, end = end_date_23, freq= 'H')
 time_df = pd.DataFrame({'Time':timeseries})
 unique_times, index_unique = np.unique(data_zwalm['Time'], return_index= True) #select unique timestamps
@@ -142,21 +132,8 @@ gdf_stations = gpd.GeoDataFrame(
     df_stations, 
     geometry=gpd.points_from_xy(df_stations['Longitude'], df_stations['Latitude']))# type: ignore 
 gdf_stations = gdf_stations.set_crs('EPSG:4326')
-#testing for 1: extract coordinates! => later in a function
-# info_station = pd.read_csv(measurements_file/"Zingem_P_Neerslag.csv", sep = ';', 
-#     nrows = 4, header=None, index_col= 0)
-# latitude_WGS84 = info_station.loc[['#station_latitude']].values.flatten()
-# latitude_WGS84 = latitude_WGS84.astype(dtype = np.float64)
-# longitude_WGS84 = info_station.loc[['#station_longitude']].values.flatten()
-# longitude_WGS84 = longitude_WGS84.astype(dtype = np.float64)
 
-#import shapefile of Zwalm: option 1 = EPSG 4326
-#zwalm_WGS84 = gpd.read_file(Path("data\Zwalm_shape\zwalm_shapefile_emma.shp"))
-#zwalm_WGS84_centroid = zwalm_WGS84['geometry'].centroid
-#https://en.wikipedia.org/wiki/Centroid
-#gdf_stations['distance'] = gdf_stations['geometry'].distance(zwalm_WGS84_centroid.iloc[0])
-
-#import shapefile of Zwalm: option 2 = EPSG 31370 = BETTER for distances!!
+#import shapefile of Zwalm: option 2 = best option = EPSG 31370 = BETTER for distances!!
 zwalm_lambert = gpd.read_file(Path("data\Zwalm_shape\zwalm_shapefile_emma_31370.shp"))
 zwalm_lambert_centroid = zwalm_lambert['geometry'].centroid
 gdf_stations_lambert = gdf_stations.to_crs('EPSG:31370').copy()#type:ignore
@@ -196,13 +173,6 @@ for i, filename in enumerate(os.listdir(measurements_file)):
     #this will only be if ALL stations have no data at that time!
  
     #select data only going from 00 to 23 (analogous to original processing)
-    # bool_00 = rain_data['Time'].dt.hour == 00
-    # index_00 = np.argwhere(bool_00[:][:].to_list())
-    # bool_23 = rain_data['Time'].dt.hour == 23
-    # index_23 = np.argwhere(bool_23[:][:].to_list())
-    # rain_data = rain_data[int(index_00[0]):int(index_23[-1])+1]
-    # start_date_00 = rain_data['Time'].iloc[0]
-    # end_date_23 = rain_data['Time'].iloc[-1]
     start_date_00, end_date_23 = find_00_23(rain_data['Time'])
     #idea = make hourly timeseries from start -> end. 
     # 1) Only include unique values (so 1 value per hour)
