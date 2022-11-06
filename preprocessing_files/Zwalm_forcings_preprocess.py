@@ -5,7 +5,10 @@ import numpy as np
 import os
 import geopandas as gpd
 import shapely
-
+pad = Path(os.getcwd())
+if pad.name != "Python":
+    pad_correct = Path("../../Python")
+    os.chdir(pad_correct)
 
 
 ##########################################################

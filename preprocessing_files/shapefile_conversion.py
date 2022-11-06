@@ -2,6 +2,12 @@
 
 import geopandas as gpd
 from pathlib import Path
+import os
+pad = Path(os.getcwd())
+if pad.name != "Python":
+    pad_correct = Path("../../Python")
+    os.chdir(pad_correct)
+
 zwalm_gpd_subbasins = gpd.read_file("data/Zwalm_shape/OS266.shp")
 circumference_zwalm = zwalm_gpd_subbasins.unary_union
 d = {'PolygonId': 15, 'Area': circumference_zwalm.area, 'Subbasin':0,'geometry':circumference_zwalm}

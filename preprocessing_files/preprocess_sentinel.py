@@ -1,10 +1,14 @@
-# Write code to allow preprocessing of the data
+# Write code to allow preprocessing of the sentinel data
 
 import os
 from pathlib import Path
-from functions.pre_processing import pre_processing_pipeline
 from joblib import Parallel, delayed
 import glob 
+pad = Path(os.getcwd())
+if pad.name != "Python":
+    pad_correct = Path("../../Python")
+    os.chdir(pad_correct)
+from functions.pre_processing import pre_processing_pipeline
 
 #parallele versie
 def pre_processing_parallel(filepath_shapefile, file, n_fils, i, output_dir, overwrite):
