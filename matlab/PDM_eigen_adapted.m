@@ -1,4 +1,4 @@
-function [Qmod,Qmod_hr, Sb, Qbm3s] = PDM_eigen_adapted(inputs,X)
+function [Qmod,Qmod_hr] = PDM_eigen_adapted(inputs,X)
 
 %aanpassing van Matlab functie zodat maximaal analoog aan Python functie
  P=inputs.P; 
@@ -86,8 +86,7 @@ C(i)=cmin+(cmax-cmin)*(1-((Smax-S1(i))/(Smax-cmin))^(1/(b+1))); %(4) Pareto  app
 %cmax*(1-(1-S1(i)/Smax)^(1/(b+1))) (20b) wanneer enkel cmax (geen cmin)
 if C(i)>cmax
     C(i)=cmax;
-elseif C(i)<=0 %vraag: dus c kan lager dan c_min gaan? Antwoord: p.487 
-    % in droge periodes,  blijft vaag...
+elseif C(i)<=0 %Cster kan dus lager dan cmin, niet lager dan 0
     C(i)=0;
 end;
 
