@@ -10,6 +10,7 @@ import geopandas as gpd
 import datetime
 import netCDF4
 import os
+import pandas as pd
 
 def read_netcdf(filepath, epsg, transpose = False):
     """Read in 1 netCDF file and add geographic information
@@ -155,7 +156,7 @@ def mask_tiff_with_shape(raster_rio_tiff, filepath_shapefile, filepath_out, noda
     """
     gpd_df = gpd.read_file(filepath_shapefile)
     geom = gpd_df['geometry']
-    out_image, out_transform = rasterio.mask.mask(raster_rio_tiff, geom, invert = False, 
+    out_image, out_transform = rasterio.mask.mask(raster_rio_tiff, geom, invert = False, #type: ignore
     crop = True)
     import pdb; pdb.set_trace(),
     if len(out_image.shape) == 2:
@@ -233,3 +234,35 @@ filepath_nc_processed, filepath_temp_data, epsg, return_bool = False, remove_nan
     else:
         tiff_to_netcdf(filepath_masked_out, filepath_nc_processed, filepath_temp_nc, return_bool,
         add_dims= True, filepath_nc_raw = filepath_nc_raw, remove_nan=remove_nan)
+
+#######################################
+# Non geographic preprocessing in pandas
+########################################
+
+def make_pd_unique_timesteps(pddf, t_column_name, t_start, t_end, freq):
+    """Transform pandas Dateframe so that you left join it on a
+    desired timeseries going from t_start to t_end at desired frequency
+
+    Parameters
+    ------------
+    pddf: pandas.DataFrame
+
+    t_colum_name: string
+        name of where time (as datetime) is located in pd
+    t_start: datetime
+    t_end: datetime
+    freq: string
+        desired frequency of timeseries
+        
+    Returns
+    --------
+    pddf_unique: pandas.DataFrame  
+        unique pandas Dataframe
+    """
+    timeseries = pd.DataFrame({t_column_name:pd.date_range(
+    t_start, t_end, freq = freq)})
+    pddf_unique = timeseries.merge(
+        pddf, on = t_column_name, how = 'left'
+    )
+    return pddf_unique
+
