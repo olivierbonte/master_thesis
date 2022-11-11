@@ -4,7 +4,7 @@ import datetime
 import numpy as np
 import os
 import geopandas as gpd
-import shapely
+
 pad = Path(os.getcwd())
 if pad.name != "Python":
     pad_correct = Path("../../Python")
@@ -43,11 +43,11 @@ def find_00_23(ds):
 ##########################################################
 
 dateparse = lambda x: datetime.datetime.strptime(x, "%d/%m/%Y %H:%M:%S")
-data_p = pd.read_csv(Path("data\Zwalm_data\MaarkeKerkem_Neerslag_1h_geaccumuleerd.csv"), parse_dates = ['Datum'],
+data_p = pd.read_csv(Path("data\Zwalm_data\data_Jarne\MaarkeKerkem_Neerslag_1h_geaccumuleerd.csv"), parse_dates = ['Datum'],
 date_parser = dateparse, dtype = np.float32)
-data_ep = pd.read_csv(Path("data\Zwalm_data\Liedekerke_ME_Potential_evapotranspiration_1h_geaccumuleerd.csv"), parse_dates = ['Date'],
+data_ep = pd.read_csv(Path("data\Zwalm_data\data_Jarne\Liedekerke_ME_Potential_evapotranspiration_1h_geaccumuleerd.csv"), parse_dates = ['Date'],
 date_parser = dateparse, dtype = np.float32)
-data_q = pd.read_csv(Path("data\Zwalm_data\OS266_L06_342_Afvoer_hourly_reprocessed.csv"), parse_dates = ['Date'],
+data_q = pd.read_csv(Path("data\Zwalm_data\data_Jarne\OS266_L06_342_Afvoer_hourly_reprocessed.csv"), parse_dates = ['Date'],
 date_parser = dateparse, dtype = np.float32)
 
 # Selecting ot time overlap between datasets
@@ -92,7 +92,7 @@ for i in indeces_filled:
     data_zwalm_hourly['EP'].iloc[i] = 1/2*( data_zwalm_hourly['EP'].iloc[i+1].values
      +  data_zwalm_hourly['EP'].iloc[i-1].values)
 
-data_zwalm_hourly.to_csv('data/Zwalm_data/zwalm_forcings_flow.csv', index = False)
+data_zwalm_hourly.to_csv('data/Zwalm_data/preprocess_output/zwalm_forcings_flow.csv', index = False)
 
 #also make a dataset where flow is aggregated on a daily basis
 #timeseries_daily = pd.date_range(start = start_date_00, end = end_date_23, freq = 'D')
@@ -102,28 +102,28 @@ def custom_nanmean(arraylike):
     return np.nanmean(arraylike)
 flow_zwalm_daily = flow_zalm_hourly.resample('1D').apply(custom_nanmean)
 flow_zwalm_daily = flow_zwalm_daily.reset_index()
-flow_zwalm_daily.to_csv("data/Zwalm_data/zwalm_flow_daily.csv", index = False)
+flow_zwalm_daily.to_csv("data/Zwalm_data/preprocess_output/zwalm_flow_daily.csv", index = False)
 
 ###########################################################
 # Extended processing: multiple measuring points considered
 ###########################################################
 
-## Step 1: Inverse Distance Weighing
+## STEP 1: INVERSE DISTANCE WEIGHING
 list_longitude_WGS84 = []
 list_latitude_WGS84 = []
 list_station_names = []
 measurements_file = Path("data\Zwalm_data\waterinfo_measurements_rain")
 for filename in os.listdir(measurements_file):
-    if filename[-3:] == 'csv':
-        #print(filename)
-        info_station = pd.read_csv(measurements_file/filename, sep = ';', 
-        nrows = 4, header=None, index_col= 0)
-        latitude_WGS84 = info_station.loc[['#station_latitude']].values.flatten()
-        list_latitude_WGS84.append(latitude_WGS84.astype(dtype = np.float64).tolist()[0])
-        longitude_WGS84 = info_station.loc[['#station_longitude']].values.flatten()
-        list_longitude_WGS84.append(longitude_WGS84.astype(dtype = np.float64).tolist()[0])
-        #list_station_names.append(info_station.loc[['#station_name']].values.tolist()[0])
-        list_station_names.append(info_station.loc['#station_name',1])
+    #if filename[-3:] == 'csv':
+    #print(filename)
+    info_station = pd.read_csv(measurements_file/filename, sep = ';', 
+    nrows = 4, header=None, index_col= 0)
+    latitude_WGS84 = info_station.loc[['#station_latitude']].values.flatten()
+    list_latitude_WGS84.append(latitude_WGS84.astype(dtype = np.float64).tolist()[0])
+    longitude_WGS84 = info_station.loc[['#station_longitude']].values.flatten()
+    list_longitude_WGS84.append(longitude_WGS84.astype(dtype = np.float64).tolist()[0])
+    #list_station_names.append(info_station.loc[['#station_name']].values.tolist()[0])
+    list_station_names.append(info_station.loc['#station_name',1])
 df_stations = pd.DataFrame(
     {'Station': list_station_names,
      'Latitude':list_latitude_WGS84,
@@ -148,17 +148,15 @@ gdf_stations_lambert['IDW_factor_quadratic'] = gdf_stations_lambert['distance']*
 b = 3
 gdf_stations_lambert['IDW_factor_cubic'] = gdf_stations_lambert['distance']**(-b)/sum(gdf_stations_lambert['distance']**(-b))
 #factors -> csv
-gdf_stations_lambert.to_csv(Path("data\Zwalm_data\zwalm_idw.csv"))
+gdf_stations_lambert.to_csv(Path("data\Zwalm_data\preprocess_output\zwalm_idw.csv"))
 
 
-## Step 2: reading in the data
+## STEP 2: READING IN THE DATA
 pd_rain_data_dict = {}
 tmins_list = []
 tmaxs_list = []
 dateparse_waterinfo = lambda x: datetime.datetime.strptime(x, "%Y-%m-%dT%H:%M:%S.")
 for i, filename in enumerate(os.listdir(measurements_file)):
-    #if filename[-3:] == 'csv':
-    print(filename)
     rain_data = pd.read_csv(measurements_file/filename, sep = ';', skiprows = 8)
     rain_data['#Timestamp'] = rain_data['#Timestamp'].str.rstrip('+01:00') 
     rain_data['#Timestamp'] = rain_data['#Timestamp'].str.rstrip('+02:00')
@@ -196,3 +194,34 @@ for i, station in enumerate(list_station_names):
         pd_rain_data_dict[station][['Time',station]],
         on = 'Time', how = 'left'
         )
+
+# STEP 3: APPLY WEIGHING FACTORS TO DATA
+#Idea here: if a Nan value is present for one of the measuring stations,
+# then this one is not considered and scaling factors of the others are increased until
+# their sum equals one again! 
+
+#naive approach = looping 
+rain_matrix = pd_zwalm_hourly_multi[list_station_names].values
+pd_IDW_factors = gdf_stations_lambert.filter(regex= '^IDW', axis = 1)
+IDW_factors = pd_IDW_factors.values
+n_stations, n_exponents_idw = IDW_factors.shape
+idw_rain_matrix = np.zeros((rain_matrix.shape[0],n_exponents_idw))
+for i in range(rain_matrix.shape[0]):
+    row = rain_matrix[i,:]
+    bool_nan = np.isnan(row)
+    if all(bool_nan):
+        idw_rain_matrix[i,:] = 0
+    # So only for the timestamps where NO data is present for ALL stations,
+    # we will assign 0 
+    else:
+        correction = np.sum(IDW_factors[~bool_nan.flatten(),:], axis = 0)
+        corrected_factors = IDW_factors/correction
+        #idea of the above: rescale the non-Nan factors so that their sum 
+        #of weighing factors = 1
+        row[bool_nan] = 0 #do not take into account the Nan values!
+        idw_rain_matrix[i,:] = row@corrected_factors #marix multiplication
+
+pd_idw_rain = pd.DataFrame(idw_rain_matrix, columns = pd_IDW_factors.columns)
+pd_zwalm_hourly_final = pd_zwalm_hourly_multi.join(pd_idw_rain)
+
+# STEP 4: ADD FLOW DATA TO THIS FINAL DATAFRAME
