@@ -58,15 +58,20 @@ def custom_thiessen_polygons(gdf_info, box_shape, gdf_catchment):
     vonoroi_shapely = voronoi_diagram(points, box_shape) ##!!WERKT VOOR 2 PUNTEN!!
     gdf_info = gdf_info.rename(columns= {'geometry':'location'})#type:ignore
     gdf_thiessen = gdf_info.copy()
-    gdf_thiessen['geometry'] = [region for region in vonoroi_shapely]#type:ignore
+    #creating the geom_list is crucial to assign correct polygon to correct name!
+    geom_list = [None] * len(gdf_info['location'])
+    geomss = list(vonoroi_shapely.geoms)#type:ignore
+    for i in range(len(geomss)):
+        for j in range(len(gdf_info['location'])):
+            if geomss[i].contains(gdf_info['location'][j]):
+                geom_list[j] = geomss[i]
+    gdf_thiessen['geometry'] = geom_list
     gdf_thiessen['geometry'] = gdf_thiessen['geometry'].astype('geometry')
     gdf_thiessen = gdf_thiessen.set_crs('EPSG:31370')
     gdf_thiessen_catchment = gdf_thiessen.overlay(gdf_catchment[['geometry']], how='intersection')#type:ignore
     gdf_thiessen_catchment['Area'] = gdf_thiessen_catchment.area
     gdf_thiessen_catchment['relative_area'] = gdf_thiessen_catchment['Area']/np.sum(gdf_thiessen_catchment['Area'])
     return gdf_thiessen_catchment
-
-    
 
 ##########################################
 #geopandas dataframes: converting or making 
@@ -125,11 +130,7 @@ box_shape = geometry.box(xmin,ymin,xmax,ymax)
 # Thiessen for P
 ###############################
 
-# FIRST: Voroni diagram for all points 
 gdf_P_thiessen = gdf_P_info[['name','station_name','geometry']]#type:ignore
-gdf_P_thiessen_zwalm = custom_thiessen_polygons(gdf_P_thiessen, box_shape, zwalm_lambert)
-
-## SECOND: Thiesen polygons for when NOT all stations are present!
 #idea: make 2 dictionaries
 # 1) a dictionary that links each set combination to a number (the key)
 # 2) a dictionary that has the correct geopandas dataframe with thiessen polygons for each combination
@@ -138,7 +139,7 @@ gdf_P_thiessen_zwalm = custom_thiessen_polygons(gdf_P_thiessen, box_shape, zwalm
 n = len(gdf_P_thiessen)
 counter = 0
 combinations_dict = {}
-for i in np.arange(2,n):
+for i in np.arange(2,n+1):
     #start from 2: we only need combinations of a minimum of 2 stations!
     comb = list(combinations(gdf_P_thiessen['name'].to_list(),i))
     for j in comb: 
@@ -187,6 +188,27 @@ P_df_all['nonan_station_sets'] = df_bool.apply(lambda x: column_selector(x, x.in
 P_df_all['#_nonan_stations'] = P_df_all['nonan_station_sets'].apply(lambda x: len(x))
 P_df_all.plot(x= 'Timestamp', y='#_nonan_stations')
 
-########################
-# EP: evapotranspiration
-########################
+#find correct gdf_to accompany each timepoint
+#set the index of combinations_gdf_dict as new column
+n_comb = len(combinations_dict)
+def give_index_for_gdf(set):
+    return int(
+        np.where(
+            np.repeat(set, n_comb) == [combinations_dict[i] for i in range(len(combinations_dict))]
+        )[0]
+    )
+P_df_all['gdf_index'] = P_df_all['nonan_station_sets'].apply(lambda x:give_index_for_gdf(x))
+
+#now apply the calculated correction factors
+def apply_correction_factors(row):
+
+
+    return 3
+
+
+
+#int(np.where(np.repeat(test_set, len(combinations_dict)) == [combinations_dict[i] for i in range(len(combinations_dict))])[0])
+
+############################
+# Thiessen for EP: analogous
+############################
