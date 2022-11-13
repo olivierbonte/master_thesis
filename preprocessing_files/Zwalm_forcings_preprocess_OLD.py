@@ -131,7 +131,7 @@ df_stations = pd.DataFrame(
 gdf_stations = gpd.GeoDataFrame(
     df_stations, 
     geometry=gpd.points_from_xy(df_stations['Longitude'], df_stations['Latitude']))# type: ignore 
-gdf_stations = gdf_stations.set_crs('EPSG:4326')
+gdf_stations = gdf_stations.set_crs('EPSG:4326')#type:ignore
 
 #import shapefile of Zwalm: option 2 = best option = EPSG 31370 = BETTER for distances!!
 zwalm_lambert = gpd.read_file(Path("data\Zwalm_shape\zwalm_shapefile_emma_31370.shp"))
