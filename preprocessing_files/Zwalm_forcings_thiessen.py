@@ -192,23 +192,37 @@ P_df_all.plot(x= 'Timestamp', y='#_nonan_stations')
 #set the index of combinations_gdf_dict as new column
 n_comb = len(combinations_dict)
 def give_index_for_gdf(set):
-    return int(
-        np.where(
-            np.repeat(set, n_comb) == [combinations_dict[i] for i in range(len(combinations_dict))]
-        )[0]
-    )
+    if len(set) > 1:
+        index = int(
+            np.where(
+                np.repeat(set, n_comb) == [combinations_dict[i] for i in range(len(combinations_dict))]
+            )[0]
+        )
+    else: #there is no corresponding index to combination if only 1 station! 
+        index = str(set) #can be used later! 
+    return index
+
 P_df_all['gdf_index'] = P_df_all['nonan_station_sets'].apply(lambda x:give_index_for_gdf(x))
 
 #now apply the calculated correction factors
 def apply_correction_factors(row):
+    gdf_index = row['gdf_index']
+    if isinstance(gdf_index, int):
+        gdf = combinations_gdf_dict[gdf_index]
+        gdf_name = gdf.set_index('name')
+        P = 0
+        for name in list(gdf_name.index):
+            P = P + row[name]*gdf_name.loc[name].relative_area
+    else: #so if only 1 station
+        current_name = gdf_index[2:-2] #cut of {} in string
+        P = row[current_name] #here gdf_index is an set
+    return P
 
-
-    return 3
-
-
-
+P_df_all['P_thiessen'] = P_df_all.apply(lambda x: apply_correction_factors(x), axis = 1)
+P_df_all.hvplot(x = 'Timestamp', y = ['P_thiessen','Zingem','Maarke-Kerkem','Elst','Ronse'])
 #int(np.where(np.repeat(test_set, len(combinations_dict)) == [combinations_dict[i] for i in range(len(combinations_dict))])[0])
-
+P_df_all.to_csv(Path('data/Zwalm_data/preprocess_output/zwalm_p_thiessen.csv'))
+P_df_all.to_pickle(Path('data/Zwalm_data/preprocess_output/zwalm_p_thiessen.pkl'))
 ############################
 # Thiessen for EP: analogous
 ############################
