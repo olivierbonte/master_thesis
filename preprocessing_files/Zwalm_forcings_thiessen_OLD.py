@@ -17,6 +17,8 @@ pad = Path(os.getcwd())
 if pad.name != "Python":
     pad_correct = Path("../../Python")
     os.chdir(pad_correct)
+# REMARK that geovoronoi is NOT anymore a defulat in the environment.yml, to run this script,
+# install this package serepately via `pip install geovoronoi[plotting]` 
 
 #pyright: reportUnboundVariable=false
 
