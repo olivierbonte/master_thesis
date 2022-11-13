@@ -80,9 +80,9 @@ with open(output_folder/'EP_info_dict.pickle', 'wb') as handle:
 ###########
 P_dict = {}
 P_info_dict = {}
-stations = ['Elst','Maarke-Kerkem','Zingem','Ronse']
-providers = ['hic','vmm','vmm','hic']
-station_ids = ['plu06a-1066','P06_014','P06_040','plu12a-1066']
+stations = ['Elst','Maarke-Kerkem','Zingem','Ronse']#,'Moerbeke']
+providers = ['hic','vmm','vmm','hic']#,'vmm']
+station_ids = ['plu06a-1066','P06_014','P06_040','plu12a-1066']#,'P07_021']
 for i in range(len(stations)):
     # Info on the station
     if providers[i] == 'vmm':
