@@ -126,7 +126,7 @@ for i in np.arange(1,len(keys_P)):
             crs = "EPSG:31370"
         )
         )# type: ignore 
-    gdf_P_info = gdf_P_info.set_crs('EPSG:31370')
+    #gdf_P_info = gdf_P_info.set_crs('EPSG:31370')
 gdf_P_info['name'] = keys_P
 #copy paste: exactly the same for EP as for P
 keys_EP = list(EP_info_dict.keys())
