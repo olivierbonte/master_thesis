@@ -260,7 +260,7 @@ def make_pd_unique_timesteps(pddf, t_column_name, t_start, t_end, freq):
         unique pandas Dataframe
     """
     timeseries = pd.DataFrame({t_column_name:pd.date_range(
-    t_start, t_end, freq = freq)})
+    t_start, t_end, freq = freq)})#type:ignore
     pddf_unique = timeseries.merge(
         pddf, on = t_column_name, how = 'left'
     )
