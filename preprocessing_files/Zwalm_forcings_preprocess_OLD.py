@@ -92,7 +92,7 @@ for i in indeces_filled:
     data_zwalm_hourly['EP'].iloc[i] = 1/2*( data_zwalm_hourly['EP'].iloc[i+1].values
      +  data_zwalm_hourly['EP'].iloc[i-1].values)
 
-data_zwalm_hourly.to_csv('data/Zwalm_data/preprocess_output/zwalm_forcings_flow.csv', index = False)
+data_zwalm_hourly.to_csv('data/Zwalm_data/preprocess_output/zwalm_forcings_flow_OLD.csv', index = False)
 
 #also make a dataset where flow is aggregated on a daily basis
 #timeseries_daily = pd.date_range(start = start_date_00, end = end_date_23, freq = 'D')
@@ -102,7 +102,7 @@ def custom_nanmean(arraylike):
     return np.nanmean(arraylike)
 flow_zwalm_daily = flow_zalm_hourly.resample('1D').apply(custom_nanmean)
 flow_zwalm_daily = flow_zwalm_daily.reset_index()
-flow_zwalm_daily.to_csv("data/Zwalm_data/preprocess_output/zwalm_flow_daily.csv", index = False)
+flow_zwalm_daily.to_csv("data/Zwalm_data/preprocess_output/zwalm_flow_daily_OLD.csv", index = False)
 
 ###########################################################
 # Extended processing: multiple measuring points considered
@@ -148,7 +148,7 @@ gdf_stations_lambert['IDW_factor_quadratic'] = gdf_stations_lambert['distance']*
 b = 3
 gdf_stations_lambert['IDW_factor_cubic'] = gdf_stations_lambert['distance']**(-b)/sum(gdf_stations_lambert['distance']**(-b))
 #factors -> csv
-gdf_stations_lambert.to_csv(Path("data\Zwalm_data\preprocess_output\zwalm_idw.csv"))
+gdf_stations_lambert.to_csv(Path("data\Zwalm_data\preprocess_output\zwalm_idw_OLD.csv"))
 
 
 ## STEP 2: READING IN THE DATA
