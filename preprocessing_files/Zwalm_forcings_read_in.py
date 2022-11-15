@@ -36,7 +36,8 @@ station_ids = ['ME07_006','ME05_019']
 for i in range(len(stations)):
     #Info on the station
     stationsinfo = vmm.get_timeseries_list(station_no = station_ids[i])
-    stationsinfo =  stationsinfo[stationsinfo['ts_name'] == 'Penman.P.15']
+    stationsinfo =  stationsinfo[stationsinfo['ts_name'] == 'Monteith.P.15'] 
+    #Monteith is supposely the Penmann-Monteith equation! 
     EP_info_dict[stations[i]] = stationsinfo[
         ['station_no','station_name',
         'station_latitude','station_longitude','station_local_x',
@@ -133,5 +134,41 @@ with open(output_folder/'P_dict.pickle', 'wb') as handle:
 with open(output_folder/'P_info_dict.pickle', 'wb') as handle:
     pickle.dump(P_info_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-
+#######
+## Flow
+#######
+#no filtering on nans is applied, only making sure that is spans the entire timerange
+station = 'Zwalm'
+station_id = 'L06_342'
+stationsinfo_OG = vmm.get_timeseries_list(station_no = station_id)
+ts_name_list = ['P.60','DagGem']
+freq_list = ['1H','1D']
+output_name_list = ['Q_hour','Q_day']
+for i, ts_name in enumerate(ts_name_list):
+    stationsinfo =  stationsinfo_OG[stationsinfo_OG['ts_name'] == ts_name]
+    stationsinfo =  stationsinfo[stationsinfo['ts_unitsymbol'] == 'm³/s']
+    flow_info =  stationsinfo[
+            ['station_no','station_name',
+            'station_latitude','station_longitude','station_local_x',
+            'station_local_y','station_georefsystem','ts_id','ts_unitname']
+        ]
+    flowdf = vmm.get_timeseries_values(
+                ts_id = str(int(stationsinfo['ts_id'].values)),#type:ignore
+                start = t_start,
+                end = t_end_hour
+            )
+    flowdf['Timestamp'] = flowdf['Timestamp'].dt.tz_localize(None)
+    pd_unique = make_pd_unique_timesteps(flowdf, 'Timestamp',
+    t_start, t_end_hour, '1H')
+    if len(pd_unique)%24 != 0:
+        raise Warning("""Length of the hourly Dataframe is not dividable
+        by 24, check for problems with duplicates""")
+    pickle_info = output_name_list[i] + '_info.pkl'
+    csv_info = output_name_list[i] + '_info.csv'
+    pickle_values = output_name_list[i] + '.pkl'
+    csv_values = output_name_list[i] + '.csv'
+    flow_info.to_pickle(output_folder/pickle_info)
+    flow_info.to_csv(output_folder/csv_info, index = False)
+    pd_unique.to_pickle(output_folder/pickle_values)
+    pd_unique.to_csv(output_folder/csv_values, index = False)
 
