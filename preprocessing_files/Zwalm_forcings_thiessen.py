@@ -134,7 +134,7 @@ gdf_P_thiessen = gdf_P_info[['name','station_name','geometry']]#type:ignore
 # 1) a dictionary that links each set combination to a number (the key)
 # 2) a dictionary that has the correct geopandas dataframe with thiessen polygons for each combination
 
-# 1) make dictionary of alll combinations
+# 1) make dictionary of all combinations
 n = len(gdf_P_thiessen)
 counter = 0
 combinations_dict = {}
@@ -190,7 +190,7 @@ P_df_all.plot(x= 'Timestamp', y='#_nonan_stations')
 #find correct gdf_to accompany each timepoint
 #set the index of combinations_gdf_dict as new column
 n_comb = len(combinations_dict)
-def give_index_for_gdf(set):
+def give_index_for_gdf(set, combinations_dict):
     if len(set) > 1:
         index = int(
             np.where(
@@ -200,11 +200,11 @@ def give_index_for_gdf(set):
     else: #there is no corresponding index to combination if only 1 station! 
         index = str(set) #can be used later! 
     return index
-
-P_df_all['gdf_index'] = P_df_all['nonan_station_sets'].apply(lambda x:give_index_for_gdf(x))
+give_index_for_gdf_P = lambda x: give_index_for_gdf(x, combinations_dict)
+P_df_all['gdf_index'] = P_df_all['nonan_station_sets'].apply(lambda x:give_index_for_gdf_P(x))
 
 #now apply the calculated correction factors
-def apply_correction_factors(row):
+def apply_correction_factors(row, combinations_gdf_dict):
     gdf_index = row['gdf_index']
     if isinstance(gdf_index, int):
         gdf = combinations_gdf_dict[gdf_index]
@@ -216,12 +216,78 @@ def apply_correction_factors(row):
         current_name = gdf_index[2:-2] #cut of {} in string
         P = row[current_name] #here gdf_index is an set
     return P
-
-P_df_all['P_thiessen'] = P_df_all.apply(lambda x: apply_correction_factors(x), axis = 1)
+apply_correction_factors_P = lambda x: apply_correction_factors(x, combinations_gdf_dict)
+P_df_all['P_thiessen'] = P_df_all.apply(lambda x: apply_correction_factors_P(x), axis = 1)
 P_df_all.hvplot(x = 'Timestamp', y = ['P_thiessen','Zingem','Maarke-Kerkem','Elst','Ronse'])
 #int(np.where(np.repeat(test_set, len(combinations_dict)) == [combinations_dict[i] for i in range(len(combinations_dict))])[0])
 P_df_all.to_csv(Path('data/Zwalm_data/preprocess_output/zwalm_p_thiessen.csv'))
 P_df_all.to_pickle(Path('data/Zwalm_data/preprocess_output/zwalm_p_thiessen.pkl'))
+
+
 ############################
 # Thiessen for EP: analogous
 ############################
+#completely analogous, to P (just copy paste as for now)
+
+
+gdf_EP_thiessen = gdf_EP_info[['name','station_name','geometry']]#type:ignore
+
+# 1) make dictionary of all combinations
+n = len(gdf_EP_thiessen)
+counter = 0
+combinations_dict_EP = {}
+for i in np.arange(2,n+1):
+    #start from 2: we only need combinations of a minimum of 2 stations!
+    comb = list(combinations(gdf_EP_thiessen['name'].to_list(),i))
+    for j in comb: 
+        combinations_dict_EP[counter] = set(j)
+        counter = counter + 1
+
+# 2) make dictionary of geopandas dataframes
+combinations_gdf_dict_EP = {}
+m = len(combinations_dict_EP)
+for i in range(m):
+    station_list = list(combinations_dict_EP[i])
+    for index, j in enumerate(station_list):
+        if index == 0:
+            gdf_temp = gdf_EP_thiessen[gdf_EP_thiessen['name'] == j][
+                ['station_name','name','geometry']
+            ]
+        elif index > 0:
+            gdf_temp = gpd.GeoDataFrame(
+                pd.concat([
+                    gdf_temp,#type:ignore
+                    gdf_EP_thiessen[gdf_EP_thiessen['name'] == j][
+                        ['station_name','name','geometry']
+                    ]
+                ], ignore_index = True)
+            )
+    gdf_temp_thiessen = custom_thiessen_polygons(gdf_temp, box_shape, zwalm_lambert)
+    gdf_temp_thiessen.plot()
+    combinations_gdf_dict_EP[i] = gdf_temp_thiessen
+
+#check where nans occur in the datasets!
+nstations = len(EP_dict)
+EP_df_all = EP_dict[keys_EP[0]][['Timestamp','Value']]
+EP_df_all  = EP_df_all.rename(columns = {'Value':keys_EP[0]})
+for i in np.arange(1,nstations):
+    df_temp = EP_dict[keys_EP[i]][['Timestamp','Value']]
+    df_temp = df_temp.rename(columns = {'Value':keys_EP[i]})
+    EP_df_all = EP_df_all.merge(df_temp, on = 'Timestamp')
+df_no_time = EP_df_all.drop('Timestamp', axis = 1)
+df_bool = df_no_time.apply(lambda x: ~np.isnan(x))
+EP_df_all['nonan_station_sets'] = df_bool.apply(lambda x: column_selector(x, x.index), axis = 1)
+EP_df_all['#_nonan_stations'] = EP_df_all['nonan_station_sets'].apply(lambda x: len(x))
+EP_df_all.plot(x= 'Timestamp', y='#_nonan_stations')
+
+#find correct gdf_to accompany each timepoint
+#set the index of combinations_gdf_dict as new column
+n_comb = len(combinations_dict_EP)
+give_index_for_gdf_EP = lambda x: give_index_for_gdf(x, combinations_dict_EP)
+EP_df_all['gdf_index'] = EP_df_all['nonan_station_sets'].apply(lambda x:give_index_for_gdf_EP(x))
+#now apply the calculated correction factors
+apply_correction_factors_EP = lambda x:apply_correction_factors(x, combinations_gdf_dict_EP)
+EP_df_all['EP_thiessen'] = EP_df_all.apply(lambda x: apply_correction_factors_EP(x), axis = 1)
+#EP_df_all.plot('Timestamp',['Liedekerke','Waregem','EP_thiessen'])
+EP_df_all.to_csv(Path('data/Zwalm_data/preprocess_output/zwalm_ep_thiessen.csv'))
+EP_df_all.to_pickle(Path('data/Zwalm_data/preprocess_output/zwalm_ep_thiessen.pkl'))
