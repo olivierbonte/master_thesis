@@ -27,7 +27,7 @@ vmm = Waterinfo('vmm')
 hic = Waterinfo('hic')
 
 ##############################
-# Evaporation by Penman method
+# Evaporation by Penman-Monteith method
 ###############################
 EP_dict = {}
 EP_info_dict = {}
@@ -159,7 +159,7 @@ for i, ts_name in enumerate(ts_name_list):
             )
     flowdf['Timestamp'] = flowdf['Timestamp'].dt.tz_localize(None)
     pd_unique = make_pd_unique_timesteps(flowdf, 'Timestamp',
-    t_start, t_end_hour, '1H')
+    t_start, t_end_hour, freq_list[i])
     if len(pd_unique)%24 != 0:
         raise Warning("""Length of the hourly Dataframe is not dividable
         by 24, check for problems with duplicates""")
