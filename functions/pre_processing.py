@@ -11,6 +11,13 @@ import datetime
 import netCDF4
 import os
 import pandas as pd
+from shapely import geometry
+from shapely.ops import voronoi_diagram
+
+
+#######################
+# Sentinel 1 Processing
+#######################
 
 def read_netcdf(filepath, epsg, transpose = False):
     """Read in 1 netCDF file and add geographic information
@@ -158,7 +165,6 @@ def mask_tiff_with_shape(raster_rio_tiff, filepath_shapefile, filepath_out, noda
     geom = gpd_df['geometry']
     out_image, out_transform = rasterio.mask.mask(raster_rio_tiff, geom, invert = False, #type: ignore
     crop = True)
-    import pdb; pdb.set_trace(),
     if len(out_image.shape) == 2:
         count = 1 #number of bands
         height = out_image.shape[0]
@@ -234,6 +240,81 @@ filepath_nc_processed, filepath_temp_data, epsg, return_bool = False, remove_nan
     else:
         tiff_to_netcdf(filepath_masked_out, filepath_nc_processed, filepath_temp_nc, return_bool,
         add_dims= True, filepath_nc_raw = filepath_nc_raw, remove_nan=remove_nan)
+
+####################
+# Landuse processing 
+####################
+
+def custom_blockproc(im, block_sz):
+    """Custom python function to extract the most occuring value per block.
+
+    Parameters
+    ---------
+    im: numpy.array
+        array of the image to be blockprocessed
+    block_sz: tuple
+        number of blocks to consider in [x,y] 
+    """
+    h, w = im.shape
+    m, n = block_sz
+    im_new = np.empty((int(h/2),int(w/2)))
+    x_iter = 0
+    y_iter = 0
+    for x in range(0, h, m):
+        for y in range(0, w, n):
+            block = im[x:x+m, y:y+n]
+            values, counts = np.unique(block, return_counts=True)
+            ind = np.argmax(counts)
+            im_new[x_iter,y_iter] = values[ind]
+            y_iter = y_iter + 1
+        x_iter = x_iter + 1
+        y_iter = 0
+    return im_new
+
+###################
+# Thiessen polygons
+##################
+
+def custom_thiessen_polygons(gdf_info, box_shape, gdf_catchment):
+    """Process outpout of shapely voronoi so that only shape of catchment is considered
+
+    Parameters
+    ----------
+    gdf_info: geopandas.GeoDataFrame
+        Each row is a station, 3 columns must be present:
+        - name: str
+        - station_name: str
+        - geometry: contains location as point (shapely)
+    box_shape: shapely.Polygon
+        Polygon defining the shape within the thiessen polygons need to be 
+        constructed 
+    gdf_catchment: geopandas.GeoDataFrame
+        must contain 'geometry' column with the polygon shape of the catchment
+
+    Returns
+    --------
+    gdf_thiessen_catchment: geopandas.GeoDataFrame   
+        geometry column containing the Thiessen polygons within the catchment, also 
+        area and relative area included 
+    """
+    points = geometry.MultiPoint(gdf_info['geometry'])
+    vonoroi_shapely = voronoi_diagram(points, box_shape) ##!!WERKT VOOR 2 PUNTEN!!
+    gdf_info = gdf_info.rename(columns= {'geometry':'location'})#type:ignore
+    gdf_thiessen = gdf_info.copy()
+    #creating the geom_list is crucial to assign correct polygon to correct name!
+    geom_list = [None] * len(gdf_info['location'])
+    geomss = list(vonoroi_shapely.geoms)#type:ignore
+    for i in range(len(geomss)):
+        for j in range(len(gdf_info['location'])):
+            if geomss[i].contains(gdf_info['location'][j]):
+                geom_list[j] = geomss[i]
+    gdf_thiessen['geometry'] = geom_list
+    gdf_thiessen['geometry'] = gdf_thiessen['geometry'].astype('geometry')
+    gdf_thiessen = gdf_thiessen.set_crs('EPSG:31370')
+    gdf_thiessen_catchment = gdf_thiessen.overlay(gdf_catchment[['geometry']], how='intersection')#type:ignore
+    gdf_thiessen_catchment['Area'] = gdf_thiessen_catchment.area
+    gdf_thiessen_catchment['relative_area'] = gdf_thiessen_catchment['Area']/np.sum(gdf_thiessen_catchment['Area'])
+    return gdf_thiessen_catchment
 
 #######################################
 # Non geographic preprocessing in pandas
