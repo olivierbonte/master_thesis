@@ -12,6 +12,8 @@ if pad.name != "Python":
     os.chdir(pad_correct)
 from functions.pre_processing import make_pd_unique_timesteps
 
+#pyright: reportUnboundVariable=false
+
 #Note: do not run this script too much, or credit will be exceeded
 #Dates we want to read in
 dateparse_waterinfo = lambda x: datetime.datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
@@ -31,8 +33,8 @@ hic = Waterinfo('hic')
 ###############################
 EP_dict = {}
 EP_info_dict = {}
-stations = ['Liedekerke','Waregem']
-station_ids = ['ME07_006','ME05_019']
+stations = ['Liedekerke','Waregem','Boekhoute']
+station_ids = ['ME07_006','ME05_019','ME03_017']
 for i in range(len(stations)):
     #Info on the station
     stationsinfo = vmm.get_timeseries_list(station_no = station_ids[i])
@@ -54,7 +56,6 @@ for i in range(len(stations)):
         start = t_intermed_2,
         end = t_end
         )
-
     #merge the 2 pandas dataframes, make unique timesframes
     pd_1['Timestamp'] = pd_1['Timestamp'].dt.tz_localize(None)
     pd_2['Timestamp'] = pd_2['Timestamp'].dt.tz_localize(None)
@@ -64,7 +65,10 @@ for i in range(len(stations)):
     t_intermed_2, t_end, freq = '0.25H')
     pddf = pd.concat([pd_1_unique, pd_2_unique], ignore_index = True)
     pddf_hourly = pddf[['Timestamp','Value']].set_index('Timestamp').resample(
-        '1H').apply(np.sum).reset_index() #sum since in mm, not mm/h!
+        '1H').agg(pd.DataFrame.sum, skipna=False).reset_index() #sum since in mm, not mm/h!
+        #important: if one Nan present when resampling, the entire sum is nan!
+    #extra step: set EP lower than 0 to 0
+    pddf_hourly.loc[pddf_hourly['Value'] < 0,'Value'] = 0
     if len(pddf_hourly)%24 != 0:
         raise Warning("""Length of the hourly Dataframe is not dividable
         by 24, check for problems with duplicates""")
@@ -158,11 +162,15 @@ for i, ts_name in enumerate(ts_name_list):
                 end = t_end_hour
             )
     flowdf['Timestamp'] = flowdf['Timestamp'].dt.tz_localize(None)
-    pd_unique = make_pd_unique_timesteps(flowdf, 'Timestamp',
-    t_start, t_end_hour, freq_list[i])
-    if len(pd_unique)%24 != 0:
-        raise Warning("""Length of the hourly Dataframe is not dividable
-        by 24, check for problems with duplicates""")
+    if ts_name == ts_name_list[0]:
+        pd_unique = make_pd_unique_timesteps(flowdf, 'Timestamp',
+        t_start, t_end_hour, freq_list[i])
+        if len(pd_unique)%24 != 0:
+            raise Warning("""Length of the hourly Dataframe is not dividable
+            by 24, check for problems with duplicates""")
+    elif ts_name == ts_name_list[1]:
+        pd_unique = make_pd_unique_timesteps(flowdf, 'Timestamp',
+        dateparse_waterinfo("2012-01-01 23:00:00"), t_end_hour, freq_list[i])
     pickle_info = output_name_list[i] + '_info.pkl'
     csv_info = output_name_list[i] + '_info.csv'
     pickle_values = output_name_list[i] + '.pkl'
