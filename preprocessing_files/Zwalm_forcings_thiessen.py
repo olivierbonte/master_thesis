@@ -5,11 +5,7 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from geovoronoi import coords_to_points, voronoi_regions_from_coords
-from geovoronoi.plotting import (plot_voronoi_polys_with_points_in_area,
-                                 subplot_for_map)
 from shapely import geometry
-from shapely.ops import voronoi_diagram
 from itertools import combinations
 import hvplot
 import hvplot.pandas
@@ -17,7 +13,7 @@ pad = Path(os.getcwd())
 if pad.name != "Python":
     pad_correct = Path("../../Python")
     os.chdir(pad_correct)
-
+from functions.pre_processing import custom_thiessen_polygons
 #pyright: reportUnboundVariable=false
 
 #http://daad.wb.tu-harburg.de/?id=279
@@ -30,48 +26,6 @@ P_dict = pickle.load(open(pickled_folder/"P_dict.pickle", "rb"))
 P_info_dict = pickle.load(open(pickled_folder/"P_info_dict.pickle", "rb"))
 EP_dict = pickle.load(open(pickled_folder/"EP_dict.pickle", "rb"))
 EP_info_dict = pickle.load(open(pickled_folder/"EP_info_dict.pickle", "rb"))
-
-################################
-# Functions to use in this script
-################################
-
-def custom_thiessen_polygons(gdf_info, box_shape, gdf_catchment):
-    """Process outpout of geovoronoi so that only shape of catchment is considered
-
-    Parameters
-    ----------
-    gdf_info: geopandas.GeoDataFrame
-        Each row is a station, 3 columns must be present:
-        - name: 
-        - station_name
-        - geometry: contains location as point (shapely)
-    gdf_catchment: geopandas.GeoDataFrame
-        must contain 'geometry' columns wit the polygon shape of the catchment
-
-    Returns
-    --------
-    gdf_thiessen_catchment: geopandas.GeoDataFrame   
-        geometry column containing the Thiessen polygons within the catchment, also 
-        area and relative area included 
-    """
-    points = geometry.MultiPoint(gdf_info['geometry'])
-    vonoroi_shapely = voronoi_diagram(points, box_shape) ##!!WERKT VOOR 2 PUNTEN!!
-    gdf_info = gdf_info.rename(columns= {'geometry':'location'})#type:ignore
-    gdf_thiessen = gdf_info.copy()
-    #creating the geom_list is crucial to assign correct polygon to correct name!
-    geom_list = [None] * len(gdf_info['location'])
-    geomss = list(vonoroi_shapely.geoms)#type:ignore
-    for i in range(len(geomss)):
-        for j in range(len(gdf_info['location'])):
-            if geomss[i].contains(gdf_info['location'][j]):
-                geom_list[j] = geomss[i]
-    gdf_thiessen['geometry'] = geom_list
-    gdf_thiessen['geometry'] = gdf_thiessen['geometry'].astype('geometry')
-    gdf_thiessen = gdf_thiessen.set_crs('EPSG:31370')
-    gdf_thiessen_catchment = gdf_thiessen.overlay(gdf_catchment[['geometry']], how='intersection')#type:ignore
-    gdf_thiessen_catchment['Area'] = gdf_thiessen_catchment.area
-    gdf_thiessen_catchment['relative_area'] = gdf_thiessen_catchment['Area']/np.sum(gdf_thiessen_catchment['Area'])
-    return gdf_thiessen_catchment
 
 ##########################################
 #geopandas dataframes: converting or making 
@@ -197,25 +151,27 @@ def give_index_for_gdf(set, combinations_dict):
                 np.repeat(set, n_comb) == [combinations_dict[i] for i in range(len(combinations_dict))]
             )[0]
         )
-    else: #there is no corresponding index to combination if only 1 station! 
+    else: #there is no corresponding index to combination if only 0 or 1 stations
         index = str(set) #can be used later! 
     return index
 give_index_for_gdf_P = lambda x: give_index_for_gdf(x, combinations_dict)
 P_df_all['gdf_index'] = P_df_all['nonan_station_sets'].apply(lambda x:give_index_for_gdf_P(x))
 
 #now apply the calculated correction factors
-def apply_correction_factors(row, combinations_gdf_dict):
+def apply_correction_factors(row, comb_gdf_dict):
     gdf_index = row['gdf_index']
     if isinstance(gdf_index, int):
-        gdf = combinations_gdf_dict[gdf_index]
+        gdf = comb_gdf_dict[gdf_index]
         gdf_name = gdf.set_index('name')
-        P = 0
+        value = 0
         for name in list(gdf_name.index):
-            P = P + row[name]*gdf_name.loc[name].relative_area
-    else: #so if only 1 station
+            value = value + row[name]*gdf_name.loc[name].relative_area
+    elif gdf_index == 'set()': #the case for 0 statoins
+        value = np.nan
+    else: # so 1 station
         current_name = gdf_index[2:-2] #cut of {} in string
-        P = row[current_name] #here gdf_index is an set
-    return P
+        value = row[current_name] #here gdf_index is an set
+    return value
 apply_correction_factors_P = lambda x: apply_correction_factors(x, combinations_gdf_dict)
 P_df_all['P_thiessen'] = P_df_all.apply(lambda x: apply_correction_factors_P(x), axis = 1)
 P_df_all.hvplot(x = 'Timestamp', y = ['P_thiessen','Zingem','Maarke-Kerkem','Elst','Ronse'])
@@ -232,6 +188,14 @@ P_df_all.to_pickle(Path('data/Zwalm_data/preprocess_output/zwalm_p_thiessen.pkl'
 
 gdf_EP_thiessen = gdf_EP_info[['name','station_name','geometry']]#type:ignore
 
+#make rectangle that encompasses al the points
+local_x = gdf_EP_info['station_local_x'].values.astype(np.float32)
+xmin = min([np.min(local_x),np.min(xx)])
+xmax = max([np.max(local_x),np.max(xx)])
+local_y = gdf_EP_info['station_local_y'].values.astype(np.float32)
+ymin = min([np.min(local_y),np.min(yy)])
+ymax = max([np.max(local_y),np.max(yy)])
+box_shape_EP = geometry.box(xmin,ymin,xmax,ymax)
 # 1) make dictionary of all combinations
 n = len(gdf_EP_thiessen)
 counter = 0
@@ -262,7 +226,7 @@ for i in range(m):
                     ]
                 ], ignore_index = True)
             )
-    gdf_temp_thiessen = custom_thiessen_polygons(gdf_temp, box_shape, zwalm_lambert)
+    gdf_temp_thiessen = custom_thiessen_polygons(gdf_temp, box_shape_EP, zwalm_lambert)
     gdf_temp_thiessen.plot()
     combinations_gdf_dict_EP[i] = gdf_temp_thiessen
 
