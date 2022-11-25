@@ -5,7 +5,7 @@ import datetime
 import os
 from pathlib import Path 
 import pickle 
-
+import pytz
 pad = Path(os.getcwd())
 if pad.name != "Python":
     pad_correct = Path("../../Python")
@@ -15,21 +15,24 @@ from functions.pre_processing import make_pd_unique_timesteps
 #pyright: reportUnboundVariable=false
 
 #Note: do not run this script too much, or credit will be exceeded
+#convention from pywaterinfo issue: always use GMT +1 = UTC +1 for timedata!
+#SO ask for data in UTC = 1 hour earlier then we actually want it! 
+# => timedelta for shift later
+belgian_timezone = pytz.timezone('Europe/Brussels')
 #Dates we want to read in
 dateparse_waterinfo = lambda x: datetime.datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
-#Choose your startdates always at 00:00:00 and end_dates at 23:45:00 for 15 min data!
-t_start = dateparse_waterinfo("2012-01-01 00:00:00")
-t_intermed_1 = dateparse_waterinfo("2016-12-31 23:45:00")
-t_intermed_2 = dateparse_waterinfo("2017-01-01 00:00:00")
-t_end = dateparse_waterinfo("2022-11-05 23:45:00")
-t_end_hour = dateparse_waterinfo("2022-11-05 23:00:00")
-
+#Choose your startdates always at 00:00:00 and end_dates at 23:45:00 for 15 min data
+t_start = belgian_timezone.localize(dateparse_waterinfo("2012-01-01 00:00:00"))
+t_intermed_1 = belgian_timezone.localize(dateparse_waterinfo("2016-12-31 23:45:00"))
+t_intermed_2 = belgian_timezone.localize(dateparse_waterinfo("2017-01-01 00:00:00"))
+t_end = belgian_timezone.localize(dateparse_waterinfo("2022-11-05 23:45:00"))
+t_end_hour = belgian_timezone.localize(dateparse_waterinfo("2022-11-05 23:00:00"))
 
 vmm = Waterinfo('vmm')
 hic = Waterinfo('hic')
 
 ##############################
-# Evaporation by Penman-Monteith method
+# %% Evaporation by Penman-Monteith method
 ###############################
 EP_dict = {}
 EP_info_dict = {}
@@ -49,7 +52,7 @@ for i in range(len(stations)):
     pd_1 = vmm.get_timeseries_values(
         ts_id = str(int(stationsinfo['ts_id'].values)),#type:ignore
         start = t_start,
-        end = t_intermed_1
+        end = t_intermed_1,
         )
     pd_2 = vmm.get_timeseries_values(
         ts_id = str(int(stationsinfo['ts_id'].values)),#type:ignore
@@ -57,12 +60,15 @@ for i in range(len(stations)):
         end = t_end
         )
     #merge the 2 pandas dataframes, make unique timesframes
+    # + now shift with one hour! GMT -> GMT +1 
     pd_1['Timestamp'] = pd_1['Timestamp'].dt.tz_localize(None)
     pd_2['Timestamp'] = pd_2['Timestamp'].dt.tz_localize(None)
+    pd_1['Timestamp'] = pd_1['Timestamp'] + pd.Timedelta(hours = 1)#GMT -> GMT +1 
+    pd_2['Timestamp'] = pd_2['Timestamp'] + pd.Timedelta(hours = 1)#GMT -> GMT +1
     pd_1_unique = make_pd_unique_timesteps(pd_1, 'Timestamp',
-    t_start, t_intermed_1, freq = '0.25H')
+    t_start.replace(tzinfo=None), t_intermed_1.replace(tzinfo=None), freq = '0.25H')
     pd_2_unique = make_pd_unique_timesteps(pd_2, 'Timestamp',
-    t_intermed_2, t_end, freq = '0.25H')
+    t_intermed_2.replace(tzinfo=None), t_end.replace(tzinfo=None), freq = '0.25H')
     pddf = pd.concat([pd_1_unique, pd_2_unique], ignore_index = True)
     pddf_hourly = pddf[['Timestamp','Value']].set_index('Timestamp').resample(
         '1H').agg(pd.DataFrame.sum, skipna=False).reset_index() #sum since in mm, not mm/h!
@@ -81,7 +87,7 @@ with open(output_folder/'EP_info_dict.pickle', 'wb') as handle:
     pickle.dump(EP_info_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 ###########
-# Rainfall
+# %% Rainfall
 ###########
 P_dict = {}
 P_info_dict = {}
@@ -121,8 +127,9 @@ for i in range(len(stations)):
     else:
         raise ValueError('No appropriate data provider is given')
     pddf['Timestamp'] = pddf['Timestamp'].dt.tz_localize(None)
+    pddf['Timestamp'] = pddf['Timestamp'] + pd.Timedelta(hours=1)#GMT-> GMT+1
     pd_unique = make_pd_unique_timesteps(pddf, 'Timestamp',
-    t_start, t_end_hour, '1H')
+    t_start.replace(tzinfo=None), t_end_hour.replace(tzinfo=None), '1H')
     if len(pd_unique)%24 != 0:
         raise Warning("""Length of the hourly Dataframe is not dividable
         by 24, check for problems with duplicates""")
@@ -138,9 +145,9 @@ with open(output_folder/'P_dict.pickle', 'wb') as handle:
 with open(output_folder/'P_info_dict.pickle', 'wb') as handle:
     pickle.dump(P_info_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-#######
-## Flow
-#######
+##########
+# %% Flow
+##########
 #no filtering on nans is applied, only making sure that is spans the entire timerange
 station = 'Zwalm'
 station_id = 'L06_342'
@@ -162,15 +169,16 @@ for i, ts_name in enumerate(ts_name_list):
                 end = t_end_hour
             )
     flowdf['Timestamp'] = flowdf['Timestamp'].dt.tz_localize(None)
+    flowdf['Timestamp'] = flowdf['Timestamp'] + pd.Timedelta(hours = 1)#GMT -> GMT+1
     if ts_name == ts_name_list[0]:
         pd_unique = make_pd_unique_timesteps(flowdf, 'Timestamp',
-        t_start, t_end_hour, freq_list[i])
+        t_start.replace(tzinfo=None), t_end_hour.replace(tzinfo=None), freq_list[i])
         if len(pd_unique)%24 != 0:
             raise Warning("""Length of the hourly Dataframe is not dividable
             by 24, check for problems with duplicates""")
     elif ts_name == ts_name_list[1]:
         pd_unique = make_pd_unique_timesteps(flowdf, 'Timestamp',
-        dateparse_waterinfo("2012-01-01 23:00:00"), t_end_hour, freq_list[i])
+        t_start.replace(tzinfo=None),t_end_hour.replace(tzinfo = None,hour = 00), freq_list[i])
     pickle_info = output_name_list[i] + '_info.pkl'
     csv_info = output_name_list[i] + '_info.csv'
     pickle_values = output_name_list[i] + '.pkl'
