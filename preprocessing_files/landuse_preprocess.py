@@ -30,7 +30,7 @@ landuse_nonan = landuse.where(landuse != 255)
 ########################################################
 # see algorithms possible:  https://rasterio.readthedocs.io/en/stable/api/rasterio.enums.html#rasterio.enums.Resampling  
 
-s1_full = rioxarray.open_rasterio('data/s0_OpenEO/S0_zwalm.nc')#type:ignore
+s1_full = xr.open_dataset('data/s0_OpenEO/S0_zwalm.nc', decode_coords='all')#type:ignore
 s1_full= s1_full.rio.write_crs(32631, inplace = True) # type: ignore #manually set crs
 
 print("Sentinel Raster:\n----------------\n")
@@ -86,8 +86,8 @@ landuse_4326_matched = landuse_4326_matched.assign_coords({
     "x":LAI_xr.x,
     "y":LAI_xr.y,
 })
+landuse_4326_matched = landuse_4326_matched.astype(np.uint8)
 LAI_xr['landuse'] = landuse_4326_matched.isel(band = 0)
 
 # %% Write landuse and LAI to new NetCDF file
-LAI_xr.to_netcdf('data/LAI/LAI_cube_Zwalm_landuse.nc')
-
+LAI_xr.to_netcdf('data/LAI/LAI_cube_Zwalm_landuse.nc', mode = 'w')
