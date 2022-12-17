@@ -7,7 +7,7 @@ import geopandas as gpd
 
 pad = Path(os.getcwd())
 if pad.name != "Python":
-    pad_correct = Path("../../Python")
+    pad_correct = Path("../../../Python")
     os.chdir(pad_correct)
 
 ################

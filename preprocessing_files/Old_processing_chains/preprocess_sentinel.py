@@ -6,7 +6,7 @@ from joblib import Parallel, delayed
 import glob 
 pad = Path(os.getcwd())
 if pad.name != "Python":
-    pad_correct = Path("../../Python")
+    pad_correct = Path("../../../Python")
     os.chdir(pad_correct)
 from functions.pre_processing import pre_processing_pipeline
 
