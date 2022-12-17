@@ -25,7 +25,9 @@ landuse = rioxarray.open_rasterio('data/Zwalm_bodembedekking'+ #type:ignore
 landuse = landuse.chunk('auto')#type:ignore
 landuse_nonan = landuse.where(landuse != 255)
 
-# %% Resampling: nearest neighbour resmpling of landuse => Sentinel
+#####################################################
+# %% RESAMLING FOR SENTINEL: nearest neighbour resmpling of landuse => Sentinel
+########################################################
 # see algorithms possible:  https://rasterio.readthedocs.io/en/stable/api/rasterio.enums.html#rasterio.enums.Resampling  
 
 s1_full = rioxarray.open_rasterio('data/s0_OpenEO/S0_zwalm.nc')#type:ignore
@@ -39,7 +41,7 @@ print_raster(landuse)
 landuse_reprojected = landuse_nonan.rio.reproject_match(
     s1_full, resampling=rasterio.enums.Resampling.nearest#type:ignore
 )
-#assign the coordinates from Sentiel-1 raster to avoid problems with floating point erros
+#assign the coordinates from Sentiel-1 raster to avoid problems with floating point errors
 landuse_reprojected = landuse_reprojected.assign_coords({
     "x":s1_full.x,
     "y":s1_full.y,
@@ -50,3 +52,42 @@ s1_full['landuse'] = landuse_reprojected.isel(band = 0) #drop the band
 
 #%% Write landuse and S1 to new NetCDF
 s1_full.to_netcdf('data/s0_OpenEO/S0_zwalm_landuse.nc', mode = 'w')
+
+#############################################
+# %% RESAMPLING FOR LAI: 
+############################################
+
+LAI_xr = xr.open_dataset('data/LAI/LAI_cube_Zwalm.nc', decode_coords= 'all')#type:ignore
+LAI_xr = LAI_xr.rio.write_crs(4326, inplace = True)#type:ignore
+
+print("LAI Raster:\n----------------\n")
+print_raster(LAI_xr)
+print("Landuse Raster:\n----------------\n")
+print_raster(landuse)
+
+#Step 1: reproject landuse to EPSG:4326 with neirest neighbour
+# keep same number of gridcells when doing so
+landuse_4326 = landuse_nonan.rio.reproject(
+    dst_crs = "EPSG:4326", shape = landuse_nonan.shape[1:3],
+    resampling = rasterio.enums.Resampling.nearest#type:ignore
+)
+print("Landuse Raster reprojected:\n----------------\n")
+print_raster(landuse_4326)
+
+#Step 2: blockprocessing idea = take most frequently occuring category per block
+landuse_4326_matched = landuse_4326.rio.reproject_match(
+    LAI_xr, resampling=rasterio.enums.Resampling.mode#type:ignore
+)
+print("Landuse Raster reprojected and matched:\n----------------\n")
+print_raster(landuse_4326_matched)
+
+#assign the coordinates from LAI raster to avoid problems with floating point errors
+landuse_4326_matched = landuse_4326_matched.assign_coords({
+    "x":LAI_xr.x,
+    "y":LAI_xr.y,
+})
+LAI_xr['landuse'] = landuse_4326_matched.isel(band = 0)
+
+# %% Write landuse and LAI to new NetCDF file
+LAI_xr.to_netcdf('data/LAI/LAI_cube_Zwalm_landuse.nc')
+
