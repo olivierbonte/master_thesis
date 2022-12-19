@@ -253,9 +253,42 @@ def PDM(P, EP, t, area, deltat, deltatout, parameters):
     return pd_out
 
 def PDM_calibration_wrapper(parameters:np.ndarray, columns:pd.Index, performance_metric:str, 
-P:np.ndarray, EP:np.ndarray,area:np.float32, deltat:np.float32, deltatout:np.float32, t_model:np.ndarray, 
+P:np.ndarray, EP:np.ndarray,area:np.float32, deltat, deltatout, t_model:np.ndarray, 
  t_calibration:np.ndarray, Qobs:pd.Series):
     """
+    Wrapper written around the PDM model to allow calibration with scipy.optimize.minimze().
+    Based on NSE or mNSE
+
+    Parameters
+    ----------
+    parameters: numpy.ndarray
+        Values of the parameters in order as they normally appear in the dataframe of PDM
+    colmuns: pandas.Index
+        Names of the parameters in the order that they are given in PDM
+    performance metric: string
+        For current implementation, either 'NSE' or 'mNSE'
+    P: numpy.ndarray
+        rainfall intensity [mm/h]. Preferably provided in np.float32
+    EP: numpy.ndarray
+        evapotranspiration [mm/h]. Preferably provided in np.float32
+    area: numpy.float32
+        area of catchment [km^2]
+    deltat: float or int
+        internal time resolution used by the model. Note that this time resolution
+        should also be present in forcings (P and EP) [h]
+    deltatout: float or int
+        desired time resolution of the modelled output. Should be larger or equal to deltat [h]
+    t_model: np.ndarray, dtype = numpy.datetime64
+        sequence of timesteps for which model will run
+    t_calibration: np.ndarray, dtype = numpy.datetime64
+        sequence of timesteps for which the model its performance metric will be computed
+    Qobs: pd.Series
+        Observatoinal flows in the desired time resolution
+
+    Returns
+    -------
+    performance:    
+        Value of the chosen performance metric
     """
     parameters = parameters.reshape(1,-1)
     parameters = pd.DataFrame(parameters, columns= columns)#type:ignore
