@@ -1,5 +1,14 @@
 import numpy as np
 import pandas as pd
+import os
+from pathlib import Path
+import scipy
+pad = Path(os.getcwd())
+if pad.name != "Python":
+    pad_correct = Path("../../Python")
+    os.chdir(pad_correct)
+from functions.performance_metrics import NSE, mNSE
+
 
 def PDM(P, EP, t, area, deltat, deltatout, parameters):
     """Probability Distributed Model from "The PDM rainfall-runoff model" by Moore (2007).
@@ -242,3 +251,26 @@ def PDM(P, EP, t, area, deltat, deltatout, parameters):
     )
     pd_out.insert(loc = 0, column = 'Time', value = tmod)
     return pd_out
+
+def PDM_calibration_wrapper(parameters:np.ndarray, columns:pd.Index, performance_metric:str, 
+P:np.ndarray, EP:np.ndarray,area:np.float32, deltat:np.float32, deltatout:np.float32, t_model:np.ndarray, 
+ t_calibration:np.ndarray, Qobs:pd.Series):
+    """
+    """
+    parameters = parameters.reshape(1,-1)
+    parameters = pd.DataFrame(parameters, columns= columns)#type:ignore
+    pd_out = PDM(P = P, EP = EP, t = t_model, 
+        area = area, deltat = deltat, deltatout = deltatout ,
+        parameters = parameters)
+    if performance_metric =='NSE':
+        metric = NSE
+    elif performance_metric == 'mNSE':
+        metric = mNSE
+    else:
+        raise ValueError('Only NSE and mNSE are defined as performance metric')
+    Qmod = pd_out.set_index('Time').loc[t_calibration,'qmodm3s'].values
+    performance = metric(Qmod, Qobs[t_calibration].values)
+    return performance
+
+
+
