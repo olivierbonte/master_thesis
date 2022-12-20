@@ -15,7 +15,7 @@ if pad.name != "Python":
     os.chdir(pad_correct)
 from functions.pre_processing import custom_thiessen_polygons
 #pyright: reportUnboundVariable=false
-
+write = True
 #http://daad.wb.tu-harburg.de/?id=279
 
 #Read in the pickled files
@@ -176,8 +176,9 @@ apply_correction_factors_P = lambda x: apply_correction_factors(x, combinations_
 P_df_all['P_thiessen'] = P_df_all.apply(lambda x: apply_correction_factors_P(x), axis = 1)
 P_df_all.hvplot(x = 'Timestamp', y = ['P_thiessen','Zingem','Maarke-Kerkem','Elst','Ronse'])
 #int(np.where(np.repeat(test_set, len(combinations_dict)) == [combinations_dict[i] for i in range(len(combinations_dict))])[0])
-P_df_all.to_csv(Path('data/Zwalm_data/preprocess_output/zwalm_p_thiessen.csv'))
-P_df_all.to_pickle(Path('data/Zwalm_data/preprocess_output/zwalm_p_thiessen.pkl'))
+if write:
+    P_df_all.to_csv(Path('data/Zwalm_data/preprocess_output/zwalm_p_thiessen.csv'))
+    P_df_all.to_pickle(Path('data/Zwalm_data/preprocess_output/zwalm_p_thiessen.pkl'))
 
 
 ############################
@@ -242,7 +243,7 @@ df_no_time = EP_df_all.drop('Timestamp', axis = 1)
 df_bool = df_no_time.apply(lambda x: ~np.isnan(x))
 EP_df_all['nonan_station_sets'] = df_bool.apply(lambda x: column_selector(x, x.index), axis = 1)
 EP_df_all['#_nonan_stations'] = EP_df_all['nonan_station_sets'].apply(lambda x: len(x))
-EP_df_all.plot(x= 'Timestamp', y='#_nonan_stations')
+EP_df_all.hvplot(x= 'Timestamp', y='#_nonan_stations')
 
 #find correct gdf_to accompany each timepoint
 #set the index of combinations_gdf_dict as new column
@@ -252,6 +253,34 @@ EP_df_all['gdf_index'] = EP_df_all['nonan_station_sets'].apply(lambda x:give_ind
 #now apply the calculated correction factors
 apply_correction_factors_EP = lambda x:apply_correction_factors(x, combinations_gdf_dict_EP)
 EP_df_all['EP_thiessen'] = EP_df_all.apply(lambda x: apply_correction_factors_EP(x), axis = 1)
+
+#PROBLEM: THERE ARE STILL NAN VALUES PRESENT!
+print(sum(np.isnan(EP_df_all['EP_thiessen'])))
+EP_df_all['Thiessen_Nan'] = np.isnan(EP_df_all['EP_thiessen'])
+#Prepare data for Nan filtering
+EP_df_all['ymd'] = EP_df_all['Timestamp'].apply(lambda x: pd.Timestamp(year = x.year, month = x.month, day = x.day))
+#EP_df_all['mdh'] =  P_df_all['Timestamp'].apply(lambda x: pd.Timestamp(month = x.month, day = x.day, hour = x.hour))
+#Nan Filter 1: Take daily average when Nan is present
+daily_mean = EP_df_all[['EP_thiessen','ymd']].groupby('ymd').mean()
+daily_mean = daily_mean.rename(columns = {'EP_thiessen':'EP_thiessen_daily_mean'})
+EP_df_all = EP_df_all.set_index('ymd').join(daily_mean, how = 'left').reset_index()
+EP_df_all['EP_thiessen'] = EP_df_all['EP_thiessen'].fillna(EP_df_all['EP_thiessen_daily_mean'])
+EP_df_all = EP_df_all.set_index('Timestamp').reset_index()
+
+#Nan filter 2: If no value for an entire day, take average of other years at this time stamp!
+#This is done for every timestamp (so for every hour of the year, an average value)
+EP_df_all['month'] = EP_df_all['Timestamp'].dt.month
+EP_df_all['day'] = EP_df_all['Timestamp'].dt.day
+EP_df_all['hour'] = EP_df_all['Timestamp'].dt.hour
+average_year = EP_df_all[['EP_thiessen','month','day','hour']].groupby(
+    ['month','day','hour']).mean()
+average_year = average_year.rename(columns = {'EP_thiessen':'EP_thiessen_ave_yearly'})
+EP_df_all = EP_df_all.set_index(['month','day','hour']).join(average_year, how = 'left').reset_index()
+EP_df_all['EP_thiessen'] = EP_df_all['EP_thiessen'].fillna(EP_df_all['EP_thiessen_ave_yearly'])
+EP_df_all = EP_df_all.set_index('Timestamp').sort_index().reset_index() #Get chronologial order back!
+print(sum(np.isnan(EP_df_all['EP_thiessen'])))
+EP_df_all = EP_df_all.drop(['ymd','month','day','hour'], axis = 1)
 #EP_df_all.plot('Timestamp',['Liedekerke','Waregem','EP_thiessen'])
-EP_df_all.to_csv(Path('data/Zwalm_data/preprocess_output/zwalm_ep_thiessen.csv'))
-EP_df_all.to_pickle(Path('data/Zwalm_data/preprocess_output/zwalm_ep_thiessen.pkl'))
+if write:
+    EP_df_all.to_csv(Path('data/Zwalm_data/preprocess_output/zwalm_ep_thiessen.csv'))
+    EP_df_all.to_pickle(Path('data/Zwalm_data/preprocess_output/zwalm_ep_thiessen.pkl'))
