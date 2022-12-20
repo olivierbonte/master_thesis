@@ -27,6 +27,7 @@ t_intermed_1 = belgian_timezone.localize(dateparse_waterinfo("2016-12-31 23:45:0
 t_intermed_2 = belgian_timezone.localize(dateparse_waterinfo("2017-01-01 00:00:00"))
 t_end = belgian_timezone.localize(dateparse_waterinfo("2022-11-05 23:45:00"))
 t_end_hour = belgian_timezone.localize(dateparse_waterinfo("2022-11-05 23:00:00"))
+#All these starting dates are in UTC+1, as all dates are in winter hour! 
 
 vmm = Waterinfo('vmm')
 hic = Waterinfo('hic')
