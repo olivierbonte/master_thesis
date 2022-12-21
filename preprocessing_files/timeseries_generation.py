@@ -11,6 +11,7 @@ pad = Path(os.getcwd())
 if pad.name != "Python":
     pad_correct = Path("../../Python")
     os.chdir(pad_correct)
+write = False
 
 #use decode_coords = 'all' for max compatiblity with rioxarray
 s1_xr = xr.open_dataset('data/s0_OpenEO/S0_zwalm_landuse.nc',decode_coords='all')
@@ -42,8 +43,8 @@ timestamps_s1 = pd_s1_tseries.index
 ###############################################
 # %% Take averages per landuse category for LAI
 ###############################################
-frac_required = 0.8 
-#minimally 80% of the cells of that landcategory should be non-nan before taking
+frac_required = 0.4
+#minimally 80% (changed to 40) of the cells of that landcategory should be non-nan before taking
 #into_account as valid timestamp
 da_landuse = LAI_xr['landuse']
 nr_timesteps_LAI = LAI_xr['LAI'].shape[0]
@@ -97,21 +98,39 @@ pd_LAI_tseries = LAI_xr[name_list_LAI].to_pandas()
 pd_LAI_tseries[name_list_LAI].plot()
 
 ###################################
-# %% Interpolating LAI data to 
+# %% Interpolating LAI data
+# Hans 20/12/2022: calculate average LAI by monthly windows
+# if 't' not in set(pd_LAI_tseries.columns):
+#     pd_LAI_tseries = pd_LAI_tseries.reset_index()
+# pd_LAI_tseries['month'] = pd_LAI_tseries['t'].dt.month.values
+# pd_montly_ave = pd_LAI_tseries.groupby('month').mean()
+# LAI_columns = pd_LAI_tseries.columns[0:6]
+# def apply_monthly_ave(row):
+#     nan_bool = row[LAI_columns].isna()
+#     nan_colmuns = LAI_columns[nan_bool]
+#     month = row['t'].month
+#     monthly_average = pd_montly_ave.loc[month]
+#     row[nan_colmuns] = monthly_average[nan_colmuns]
+#     return row
+# pd_LAI_tseries_filled = pd_LAI_tseries[LAI_columns].apply(lambda row: apply_monthly_ave(row), axis = 1)
+# pd_LAI_tseries_filled = pd_LAI_tseries_filled.set_index('t')
+# pd_LAI_tseries = pd_LAI_tseries.set_index('t')
+# pd_LAI_tseries_filled[name_list_LAI].plot()
+# Above leads to worse performance => droppend on 21/12/2022
 
 #Neural ode julia uses Steffen's method
 #https://gist.github.com/niclasmattsson/7bceb05fba6c71c78d507adae3d29417
 # https://en.wikipedia.org/wiki/Monotone_cubic_interpolation 
 # https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.PchipInterpolator.html 
-test_interp = pd_LAI_tseries.interpolate(mehtod = 'cubicspline')
-monoton_cubic_interp = pd_LAI_tseries.interpolate(method = 'pchip')
-
-
+#test_interp = pd_LAI_tseries.interpolate(mehtod = 'cubicspline')
+#monoton_cubic_interp = pd_LAI_tseries.interpolate(method = 'pchip')
 #TESTING INTERPOLATION
-no_nan_pasture = pd_LAI_tseries['LAIPasture'].dropna()
-f = scipy.interpolate.PchipInterpolator(no_nan_pasture.index, no_nan_pasture)
-LAI_s1_times = f(timestamps_s1)
+# no_nan_pasture = pd_LAI_tseries['LAIPasture'].dropna()
+# f = scipy.interpolate.PchipInterpolator(no_nan_pasture.index, no_nan_pasture)
+# LAI_s1_times = f(timestamps_s1)
+# Interpolating on the unknown timestemps!
 
+pd_LAI_tseries_filled = pd_LAI_tseries.copy()
 #adding interpolated values to timeseries of Sentinel 1
 for i in range(len(landusenumbers)):
     LAI_ts = pd_LAI_tseries[name_list_LAI[i]]
@@ -119,14 +138,29 @@ for i in range(len(landusenumbers)):
     if len(LAI_ts) > 0:
         f = scipy.interpolate.PchipInterpolator(LAI_ts.index, LAI_ts)
         LAI_ts_s1 =f(timestamps_s1)
+        LAI_filled = f(pd_LAI_tseries_filled.index)
         pd_s1_tseries[name_list_LAI[i]] = LAI_ts_s1
+        pd_LAI_tseries_filled[name_list_LAI[i]] = LAI_filled
+#plot the filled datastet
+fig, ax = plt.subplots(figsize = (10,7))
+pd_LAI_tseries[name_list_LAI].plot(ax = ax, title = 'Original data')
+ax.set_ylabel('LAI')
+fig, ax = plt.subplots(figsize = (10,7))
+pd_LAI_tseries_filled[name_list_LAI].plot(ax = ax,title = 'Spline interpolation')
+ax.set_ylabel('LAI')
 
 ## plot interpolated values on original data
 fig, ax = plt.subplots(figsize = (15,10))
 pd_LAI_tseries[name_list_LAI].plot(ax = ax)
 pd_s1_tseries[name_list_LAI[:-1]].plot.line(marker = '.', ax = ax, linestyle = 'None')
 
+# # %% COMPARING BELOW WITH HVPLOT
+# pd_LAI_tseries[name_list_LAI].hvplot(frame_width = 800, title = 'original')
+# # %%
+# pd_LAI_tseries_filled[name_list_LAI].hvplot(frame_width = 800, title = 'Spline interpolation')
+
 # %% write out timeseries
-pd_s1_tseries.to_csv('data/s0_OpenEO/s1_timeseries.csv')
-pd_LAI_tseries.to_csv('data/LAI/LAI_timeseries.csv')
+if write: 
+    pd_s1_tseries.to_csv('data/s0_OpenEO/s1_timeseries.csv')
+    pd_LAI_tseries.to_csv('data/LAI/LAI_timeseries.csv')
 # %%
