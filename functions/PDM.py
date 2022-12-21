@@ -9,6 +9,7 @@ if pad.name != "Python":
     pad_correct = Path("../../Python")
     os.chdir(pad_correct)
 from functions.performance_metrics import NSE, mNSE
+from joblib import Parallel, delayed
 
 
 def PDM(P:np.ndarray, EP:np.ndarray, t, area:np.float32, deltat, deltatout, parameters):
@@ -308,6 +309,72 @@ P:np.ndarray, EP:np.ndarray,area:np.float32, deltat, deltatout, t_model:np.ndarr
     Qmod = pd_out.set_index('Time').loc[t_calibration,'qmodm3s'].values
     performance = metric(Qmod, Qobs[t_calibration].values)
     return performance
+
+def PDM_calibration_wrapper_PSO(parameters:np.ndarray, columns:pd.Index, performance_metric:str, 
+P:np.ndarray, EP:np.ndarray,area:np.float32, deltat, deltatout, t_model:np.ndarray, 
+ t_calibration:np.ndarray, Qobs:pd.Series):
+    """
+    Wrapper written around the PDM model to allow calibration with pyswarms PSO.
+    Based on NSE or mNSE
+
+    Parameters
+    ----------
+    parameters: numpy.ndarray
+        Values of the parameters in order as they normally appear in the dataframe of PDM
+    colmuns: pandas.Index
+        Names of the parameters in the order that they are given in PDM
+    performance metric: string
+        For current implementation, either 'NSE' or 'mNSE'
+    P: numpy.ndarray
+        rainfall intensity [mm/h]. Preferably provided in np.float32
+    EP: numpy.ndarray
+        evapotranspiration [mm/h]. Preferably provided in np.float32
+    area: numpy.float32
+        area of catchment [km^2]
+    deltat: float or int
+        internal time resolution used by the model. Note that this time resolution
+        should also be present in forcings (P and EP) [h]
+    deltatout: float or int
+        desired time resolution of the modelled output. Should be larger or equal to deltat [h]
+    t_model: np.ndarray, dtype = numpy.datetime64
+        sequence of timesteps for which model will run
+    t_calibration: np.ndarray, dtype = numpy.datetime64
+        sequence of timesteps for which the model its performance metric will be computed
+    Qobs: pd.Series
+        Observatoinal flows in the desired time resolution
+
+    Returns
+    -------
+    performance:    
+        Value of the chosen performance metric
+    """
+    n_particles, n_params = parameters.shape
+    if performance_metric =='NSE':
+        metric = NSE
+    elif performance_metric == 'mNSE':
+        metric = mNSE
+    else:
+        raise ValueError('Only NSE and mNSE are defined as performance metric')
+    performances = np.zeros(n_particles)
+    #import pdb; pdb.set_trace()
+    def PDM_loop(i, parameters, P, EP, t_model, area, deltat, deltatout,t_calibration,Qobs, metric):
+        param_temp = parameters[i,:]#type:ignore
+        param_temp = pd.DataFrame(param_temp.reshape(1,-1))
+        #import pdb; pdb.set_trace(),
+        param_temp.columns = columns
+        pd_out = PDM(P = P, EP = EP, t = t_model, 
+            area = area, deltat = deltat, deltatout = deltatout ,
+            parameters = param_temp)
+        Qmod = pd_out.set_index('Time').loc[t_calibration,'qmodm3s'].values#type:ignore
+        performance = metric(Qmod, Qobs[t_calibration].values)
+        return performance
+    for i in range(n_particles):
+       performances[i] = PDM_loop(i, parameters, P, EP, t_model, area,
+        deltat, deltatout,t_calibration,Qobs, metric)
+    # performances_list = Parallel(n_jobs=-1)(delayed(PDM_loop)(
+    # i, parameters, P, EP, t_model, area, deltat, deltatout,t_calibration,Qobs, metric
+    # ) for i in range(n_particles))
+    return performances
 
 
 
