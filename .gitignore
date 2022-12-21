@@ -1,7 +1,8 @@
 
 .ipynb_checkpoints
 
-.pyc
+*.pyc
+*.log
 
 data/
 */data/
@@ -14,5 +15,7 @@ data/
 
 */output/*
 
-.png
-.pdf
+*.png
+*.pdf
+
+
