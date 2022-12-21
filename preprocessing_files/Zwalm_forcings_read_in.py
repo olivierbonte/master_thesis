@@ -1,3 +1,4 @@
+# %% Load in pacakges
 from pywaterinfo import Waterinfo
 import pandas as pd
 import numpy as np
@@ -74,8 +75,8 @@ for i in range(len(stations)):
     pddf_hourly = pddf[['Timestamp','Value']].set_index('Timestamp').resample(
         '1H').agg(pd.DataFrame.sum, skipna=False).reset_index() #sum since in mm, not mm/h!
         #important: if one Nan present when resampling, the entire sum is nan!
-    #extra step: set EP lower than 0 to 0
-    pddf_hourly.loc[pddf_hourly['Value'] < 0,'Value'] = 0
+    #extra step: set EP lower than 0 to 0, confirmed to be good idea by Niko on 21/12/2022
+    pddf_hourly.loc[pddf_hourly['Value'] < 0,'Value'] = 0 # but note on 20/12/2022: Hans says negative EP are allowed 
     if len(pddf_hourly)%24 != 0:
         raise Warning("""Length of the hourly Dataframe is not dividable
         by 24, check for problems with duplicates""")
