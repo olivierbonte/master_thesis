@@ -12,7 +12,7 @@ from functions.performance_metrics import NSE, mNSE
 from joblib import Parallel, delayed
 
 
-def PDM(P:np.ndarray, EP:np.ndarray, t, area:np.float32, deltat, deltatout, parameters):
+def PDM(P:np.ndarray, EP:np.ndarray, t, area:np.float32, deltat, deltatout, parameters, m = 3):
     """Probability Distributed Model from "The PDM rainfall-runoff model" by Moore (2007).
     References to equations in this paper are made with their respective equation number. 
     From Appendix A, only formula referring to the Pareto Distribution are used.
@@ -49,6 +49,9 @@ def PDM(P:np.ndarray, EP:np.ndarray, t, area:np.float32, deltat, deltatout, para
         - bg: exponent of the recharge funtion [-] (cf formula at kg)
         - tdly: time delay [h] which shifts the hydrograph with the tdly
         - qconst: const flow representing returns/abstractions within the catchment [m^3/s] 
+    m: int, default = 3
+        The groundwater storage is modelled as a non-linear reservoir of the form q = kb S^m.
+        The default value of m is 3 (cubic), but a quadratic reservoir is also implemented
 
     Returns
     -------
@@ -199,12 +202,39 @@ def PDM(P:np.ndarray, EP:np.ndarray, t, area:np.float32, deltat, deltatout, para
                 Cstar[i] = 0
 
             ### GROUNDWATER STORAGE S3 ###
-            S3[i] = S3[i-1] - 1/(3*kb*S3[i-1]**2)*(np.exp(-3*deltat*kb*S3[i-1]**2)-1)*(di[i]-kb*S3[i-1]**3) # (24)
-            qb[i] = kb*S3[i]**3
-            if qb[i] < 0:
-                qb[i] = 0
-            qbm3s[i] = qb[i]*aream2/(1000*3600) #mm -> m, h -> s
+            if m == 3:
+                S3[i] = S3[i-1] - 1/(3*kb*S3[i-1]**2)*(np.exp(-3*deltat*kb*S3[i-1]**2)-1)*(di[i]-kb*S3[i-1]**3) # (24)
+                qb[i] = kb*S3[i]**3
+            elif m == 2:
+                #Based on solution of horton izzard equation!
+                #This solution is presented in Moore and Bell (2002) equations (A.3) and (A.4)
+                a = m*kb**(1/m)
+                b = (m-1)/m
+                if di[i] < 0:
+                    Warning('Solution not valid for negative di')
+                N = (1 - (qb[i-1]/di[i])**(1/2))
+                if N == 0:
+                    Warning('A zero division error almost occured,'
+                     + 'Therefore an alterantive calculation was performed')
+                    # N = 0 -> z = oneindig -> qb[i] -> (z-1)/(1+z) = 1 
+                    # -> qb[i] = di[i]
+                    qb[i] = di[i]
+                else:
+                    z = np.exp(a*deltat*di[i]**(1/2))*(
+                        (1 + (qb[i-1]/di[i])**(1/2))/
+                        N
+                        )
+                    if z == -1:
+                        raise ValueError('will make demoninator 0')
+                    qb[i] = di[i]*((z-1)/(1+z))**2
+                #S3 easily obtained from qb[i]
+                S3[i] = (qb[i]/kb)**(1/m)
+            else:
+                raise ValueError('m should be equal to 2 or 3 (as int), no other values implemented')
 
+            if qb[i] < 0:
+                    qb[i] = 0
+            qbm3s[i] = qb[i]*aream2/(1000*3600) #mm -> m, h -> s
             ### SURFACE STORAGE S2 ###
             qd[i] = V[i]/deltat #added on own behalve
             if i > 1:
@@ -259,7 +289,7 @@ def PDM(P:np.ndarray, EP:np.ndarray, t, area:np.float32, deltat, deltatout, para
 
 def PDM_calibration_wrapper(parameters:np.ndarray, columns:pd.Index, performance_metric:str, 
 P:np.ndarray, EP:np.ndarray,area:np.float32, deltat, deltatout, t_model:np.ndarray, 
- t_calibration:np.ndarray, Qobs:pd.Series):
+ t_calibration:np.ndarray, Qobs:pd.Series, *args, **kwargs):
     """
     Wrapper written around the PDM model to allow calibration with scipy.optimize.minimze().
     Based on NSE or mNSE
@@ -299,7 +329,7 @@ P:np.ndarray, EP:np.ndarray,area:np.float32, deltat, deltatout, t_model:np.ndarr
     parameters = pd.DataFrame(parameters, columns= columns)#type:ignore
     pd_out = PDM(P = P, EP = EP, t = t_model, 
         area = area, deltat = deltat, deltatout = deltatout ,
-        parameters = parameters)
+        parameters = parameters, *args, **kwargs)
     if performance_metric =='NSE':
         metric = NSE
     elif performance_metric == 'mNSE':
@@ -312,7 +342,7 @@ P:np.ndarray, EP:np.ndarray,area:np.float32, deltat, deltatout, t_model:np.ndarr
 
 def PDM_calibration_wrapper_PSO(parameters:np.ndarray, columns:pd.Index, performance_metric:str, 
 P:np.ndarray, EP:np.ndarray,area:np.float32, deltat, deltatout, t_model:np.ndarray, 
- t_calibration:np.ndarray, Qobs:pd.Series):
+ t_calibration:np.ndarray, Qobs:pd.Series, *args, **kwargs):
     """
     Wrapper written around the PDM model to allow calibration with pyswarms PSO.
     Based on NSE or mNSE
@@ -364,7 +394,7 @@ P:np.ndarray, EP:np.ndarray,area:np.float32, deltat, deltatout, t_model:np.ndarr
         param_temp.columns = columns
         pd_out = PDM(P = P, EP = EP, t = t_model, 
             area = area, deltat = deltat, deltatout = deltatout ,
-            parameters = param_temp)
+            parameters = param_temp, *args, **kwargs)
         Qmod = pd_out.set_index('Time').loc[t_calibration,'qmodm3s'].values#type:ignore
         performance = metric(Qmod, Qobs[t_calibration].values)
         return performance
