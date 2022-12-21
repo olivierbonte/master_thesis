@@ -260,12 +260,14 @@ EP_df_all['Thiessen_Nan'] = np.isnan(EP_df_all['EP_thiessen'])
 #Prepare data for Nan filtering
 EP_df_all['ymd'] = EP_df_all['Timestamp'].apply(lambda x: pd.Timestamp(year = x.year, month = x.month, day = x.day))
 #EP_df_all['mdh'] =  P_df_all['Timestamp'].apply(lambda x: pd.Timestamp(month = x.month, day = x.day, hour = x.hour))
+
+#UPDATE HANS: the method below is NOT GOOD! Does not take into account daily variation!  
 #Nan Filter 1: Take daily average when Nan is present
-daily_mean = EP_df_all[['EP_thiessen','ymd']].groupby('ymd').mean()
-daily_mean = daily_mean.rename(columns = {'EP_thiessen':'EP_thiessen_daily_mean'})
-EP_df_all = EP_df_all.set_index('ymd').join(daily_mean, how = 'left').reset_index()
-EP_df_all['EP_thiessen'] = EP_df_all['EP_thiessen'].fillna(EP_df_all['EP_thiessen_daily_mean'])
-EP_df_all = EP_df_all.set_index('Timestamp').reset_index()
+# daily_mean = EP_df_all[['EP_thiessen','ymd']].groupby('ymd').mean()
+# daily_mean = daily_mean.rename(columns = {'EP_thiessen':'EP_thiessen_daily_mean'})
+# EP_df_all = EP_df_all.set_index('ymd').join(daily_mean, how = 'left').reset_index()
+# EP_df_all['EP_thiessen'] = EP_df_all['EP_thiessen'].fillna(EP_df_all['EP_thiessen_daily_mean'])
+# EP_df_all = EP_df_all.set_index('Timestamp').reset_index()
 
 #Nan filter 2: If no value for an entire day, take average of other years at this time stamp!
 #This is done for every timestamp (so for every hour of the year, an average value)
@@ -276,9 +278,32 @@ average_year = EP_df_all[['EP_thiessen','month','day','hour']].groupby(
     ['month','day','hour']).mean()
 average_year = average_year.rename(columns = {'EP_thiessen':'EP_thiessen_ave_yearly'})
 EP_df_all = EP_df_all.set_index(['month','day','hour']).join(average_year, how = 'left').reset_index()
-EP_df_all['EP_thiessen'] = EP_df_all['EP_thiessen'].fillna(EP_df_all['EP_thiessen_ave_yearly'])
+EP_df_all['EP_thiessen_filled'] = EP_df_all['EP_thiessen']
+EP_df_all['EP_thiessen_filled'] = EP_df_all['EP_thiessen_filled'].fillna(EP_df_all['EP_thiessen_ave_yearly'])
+Nan_days = EP_df_all[EP_df_all['Thiessen_Nan'] == True]['ymd'].unique()
+for day in Nan_days:
+    EP_df_temp = EP_df_all[EP_df_all['ymd'] == day]
+    nan_moments_bool = np.isnan(EP_df_temp['EP_thiessen'])
+    nan_moments_indexes = nan_moments_bool[nan_moments_bool == True].index
+    nonan_hours = EP_df_temp.loc[~nan_moments_bool,'hour']
+    nan_day = pd.Timestamp(day).day
+    nan_month = pd.Timestamp(day).month
+    if sum(nan_moments_bool) < 24: #so not the entire day Nan!
+        mean_nan_period = np.mean(EP_df_temp.loc[~nan_moments_bool,'EP_thiessen'])
+        EP_df_other_years = EP_df_all[EP_df_all['day'] == nan_day]
+        EP_df_other_years = EP_df_other_years[EP_df_other_years['month'] == nan_month]
+        EP_df_other_years = EP_df_other_years[EP_df_other_years['hour'].isin(nonan_hours)]
+        mean_other_years = np.mean(EP_df_other_years['EP_thiessen'])
+        #'EP_thiessen_filled#only resscale the acutal Nan moments!
+        EP_df_all.loc[nan_moments_indexes, 'EP_thiessen_filled'] = EP_df_all.loc[nan_moments_indexes, 'EP_thiessen_filled']*mean_nan_period/mean_other_years
+
+#drop EP_thiessen
+EP_df_all = EP_df_all.drop('EP_thiessen', axis = 1)
+#repname EP_thiessen_filled to EP_thiessen
+EP_df_all = EP_df_all.rename(columns = {'EP_thiessen_filled':'EP_thiessen'})
 EP_df_all = EP_df_all.set_index('Timestamp').sort_index().reset_index() #Get chronologial order back!
 print(sum(np.isnan(EP_df_all['EP_thiessen'])))
+EP_df_all[['Timestamp','EP_thiessen','Thiessen_Nan']].hvplot(x= 'Timestamp')
 EP_df_all = EP_df_all.drop(['ymd','month','day','hour'], axis = 1)
 #EP_df_all.plot('Timestamp',['Liedekerke','Waregem','EP_thiessen'])
 if write:
