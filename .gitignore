@@ -14,8 +14,10 @@ data/
 */__pycache__/*
 
 */output/*
+.vscode
 
 *.png
 *.pdf
+*.svg
 
 
