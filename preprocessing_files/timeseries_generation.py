@@ -1,5 +1,6 @@
 # %% Read in
 import xarray as xr
+import pandas as pd
 import hvplot.pandas
 import hvplot.xarray
 import scipy
@@ -11,7 +12,7 @@ pad = Path(os.getcwd())
 if pad.name != "Python":
     pad_correct = Path("../../Python")
     os.chdir(pad_correct)
-write = False
+write = True
 
 #use decode_coords = 'all' for max compatiblity with rioxarray
 s1_xr = xr.open_dataset('data/s0_OpenEO/S0_zwalm_landuse.nc',decode_coords='all')
@@ -57,18 +58,18 @@ for i in range(nr_timesteps_LAI):
 #select first timestep with max amount of cells to create a mask
 max_positions = np.where(nr_nonan_list == max(nr_nonan_list))
 mask = ~np.isnan(LAI_xr['LAI'].isel(t=max_positions[0][0]))
-nr_pixels_landuse_masked = np.sum(mask).values
+nr_pixels_landuse_masked = np.sum(mask).values#type:ignore
 bool_name_list = []
 for i in range(len(landusenumbers)):
     da_landcat = da_landuse.where(da_landuse == landusenumbers[i])
     da_landcat = da_landcat.where(mask == 1) #only WITHIN catchment!
     da_LAI_landcat = LAI_xr['LAI'].where(da_landuse == landusenumbers[i])
     da_LAI_landcat = da_LAI_landcat.where(mask == 1) #only WITHIN catchment!
-    nr_pixels_landcat = np.sum(~np.isnan(da_landcat)).values
+    nr_pixels_landcat = np.sum(~np.isnan(da_landcat)).values#type:ignore
     bool_full_image = []
     for j in range(nr_timesteps_LAI):
         da_LAI_landcat_tj = da_LAI_landcat.isel(t=j)
-        nonan_count = np.sum(~np.isnan(da_LAI_landcat_tj)).values
+        nonan_count = np.sum(~np.isnan(da_LAI_landcat_tj)).values#type:ignore
         if nr_pixels_landcat > 0:
             frac = nonan_count/nr_pixels_landcat
             if frac < frac_required:
@@ -132,6 +133,9 @@ pd_LAI_tseries[name_list_LAI].plot()
 
 pd_LAI_tseries_filled = pd_LAI_tseries.copy()
 #adding interpolated values to timeseries of Sentinel 1
+t_plotting = pd.date_range(pd_LAI_tseries_filled.index[0], timestamps_s1[-1], freq = 'H')#type:ignore
+pd_plotting_dict = {}
+pd_plotting_dict['t'] = t_plotting
 for i in range(len(landusenumbers)):
     LAI_ts = pd_LAI_tseries[name_list_LAI[i]]
     LAI_ts = LAI_ts.dropna() #only fit interpolator on not nans
@@ -139,8 +143,11 @@ for i in range(len(landusenumbers)):
         f = scipy.interpolate.PchipInterpolator(LAI_ts.index, LAI_ts)
         LAI_ts_s1 =f(timestamps_s1)
         LAI_filled = f(pd_LAI_tseries_filled.index)
+        LAI_plotting = f(t_plotting)
         pd_s1_tseries[name_list_LAI[i]] = LAI_ts_s1
         pd_LAI_tseries_filled[name_list_LAI[i]] = LAI_filled
+        pd_plotting_dict[name_list_LAI[i]] = LAI_plotting
+
 #plot the filled datastet
 fig, ax = plt.subplots(figsize = (10,7))
 pd_LAI_tseries[name_list_LAI].plot(ax = ax, title = 'Original data')
@@ -151,8 +158,21 @@ ax.set_ylabel('LAI')
 
 ## plot interpolated values on original data
 fig, ax = plt.subplots(figsize = (15,10))
-pd_LAI_tseries[name_list_LAI].plot(ax = ax)
-pd_s1_tseries[name_list_LAI[:-1]].plot.line(marker = '.', ax = ax, linestyle = 'None')
+pd_LAI_tseries[name_list_LAI].plot(ax = ax, marker = '.', linestyle = 'None')
+pd_s1_tseries[name_list_LAI[:-1]].plot.line(ax = ax, marker = '*', linestyle = 'None')
+
+## Final plot
+pd_plotting = pd.DataFrame(pd_plotting_dict)
+pd_plotting = pd_plotting.set_index('t')
+fig, ax = plt.subplots(figsize = (10,7))
+pd_LAI_tseries[name_list_LAI[:-1]].plot(ax = ax, marker = '.', linestyle = 'None')
+colors_used = [plt.gca().lines[i].get_color() for i in range(len(landusenumbers)-1)]
+pd_plotting[name_list_LAI[:-1]].plot(ax = ax, color = colors_used)
+og_names = ['Urban','Forest','Pasture','Agriculture']
+interpol_names = ['Urban: interpolated','Forest: interpolated','Pasture: interpolated',
+'Agriculture: interpolated']
+ax.legend(og_names + interpol_names, ncol = 2)
+#Even further optimised this figure in Chapter_data.ipynb 
 
 # # %% COMPARING BELOW WITH HVPLOT
 # pd_LAI_tseries[name_list_LAI].hvplot(frame_width = 800, title = 'original')
@@ -163,4 +183,8 @@ pd_s1_tseries[name_list_LAI[:-1]].plot.line(marker = '.', ax = ax, linestyle = '
 if write: 
     pd_s1_tseries.to_csv('data/s0_OpenEO/s1_timeseries.csv')
     pd_LAI_tseries.to_csv('data/LAI/LAI_timeseries.csv')
+    pd_plotting.to_csv('data/LAI/LAI_plotting.csv')
+    print('Dataframes saved to csv')
+    pd_LAI_tseries.to_pickle('data/LAI/LAI_timeseries.pkl')
+    pd_plotting.to_pickle('data/LAI/LAI_plotting.pkl')
 # %%
