@@ -1,6 +1,7 @@
 name: thesis
 channels:
  - conda-forge
+ - defaults
 dependencies:
 - python=3.10 
 - numpy
@@ -21,6 +22,7 @@ dependencies:
 - dask
 - seaborn
 - python-dateutil
+- contextily
 - pip
 - pip:
   - pywaterinfo
