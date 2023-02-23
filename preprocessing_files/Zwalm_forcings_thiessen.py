@@ -61,6 +61,9 @@ for i in np.arange(1,len(keys_EP)):
         )# type: ignore 
 gdf_EP_info['name'] = keys_EP
 
+gdf_P_info.to_pickle('data/Zwalm_data/preprocess_output/gdf_P_info.pkl')
+gdf_EP_info.to_pickle('data/Zwalm_data/preprocess_output/gdf_EP_info.pkl')
+
 #Data on Zwalm: use epsg 31370 for distance calculation
 zwalm_lambert = gpd.read_file(Path("data\Zwalm_shape\zwalm_shapefile_emma_31370.shp"))
 zwalm_lambert_centroid = zwalm_lambert['geometry'].centroid
@@ -72,11 +75,11 @@ xx, yy = zwalm_lambert['boundary'].values[0].exterior.coords.xy
 
 #make rectangle that encompasses al the points
 local_x = gdf_P_info['station_local_x'].values.astype(np.float32)
-xmin = min([np.min(local_x),np.min(xx)])
-xmax = max([np.max(local_x),np.max(xx)])
+xmin = min([np.min(local_x),np.min(xx)])#type:ignore
+xmax = max([np.max(local_x),np.max(xx)])#type:ignore
 local_y = gdf_P_info['station_local_y'].values.astype(np.float32)
-ymin = min([np.min(local_y),np.min(yy)])
-ymax = max([np.max(local_y),np.max(yy)])
+ymin = min([np.min(local_y),np.min(yy)])#type:ignore
+ymax = max([np.max(local_y),np.max(yy)])#type:ignore
 box_shape = geometry.box(xmin,ymin,xmax,ymax)
 
 #############################
@@ -179,6 +182,8 @@ P_df_all.hvplot(x = 'Timestamp', y = ['P_thiessen','Zingem','Maarke-Kerkem','Els
 if write:
     P_df_all.to_csv(Path('data/Zwalm_data/preprocess_output/zwalm_p_thiessen.csv'))
     P_df_all.to_pickle(Path('data/Zwalm_data/preprocess_output/zwalm_p_thiessen.pkl'))
+    with open('data/Zwalm_data/preprocess_output/all_p_polygon_combinations.pkl', 'wb') as handle:
+        pickle.dump(combinations_gdf_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 ############################
@@ -191,11 +196,11 @@ gdf_EP_thiessen = gdf_EP_info[['name','station_name','geometry']]#type:ignore
 
 #make rectangle that encompasses al the points
 local_x = gdf_EP_info['station_local_x'].values.astype(np.float32)
-xmin = min([np.min(local_x),np.min(xx)])
-xmax = max([np.max(local_x),np.max(xx)])
+xmin = min([np.min(local_x),np.min(xx)])#type:ignore
+xmax = max([np.max(local_x),np.max(xx)])#type:ignore
 local_y = gdf_EP_info['station_local_y'].values.astype(np.float32)
-ymin = min([np.min(local_y),np.min(yy)])
-ymax = max([np.max(local_y),np.max(yy)])
+ymin = min([np.min(local_y),np.min(yy)])#type:ignore
+ymax = max([np.max(local_y),np.max(yy)])#type:ignore
 box_shape_EP = geometry.box(xmin,ymin,xmax,ymax)
 # 1) make dictionary of all combinations
 n = len(gdf_EP_thiessen)
@@ -309,3 +314,5 @@ EP_df_all = EP_df_all.drop(['ymd','month','day','hour'], axis = 1)
 if write:
     EP_df_all.to_csv(Path('data/Zwalm_data/preprocess_output/zwalm_ep_thiessen.csv'))
     EP_df_all.to_pickle(Path('data/Zwalm_data/preprocess_output/zwalm_ep_thiessen.pkl'))
+    with open('data/Zwalm_data/preprocess_output/all_ep_polygon_combinations.pkl', 'wb') as handle:
+        pickle.dump(combinations_gdf_dict_EP, handle, protocol=pickle.HIGHEST_PROTOCOL)
