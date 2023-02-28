@@ -8,7 +8,7 @@ if pad.name != "Python":
     pad_correct = Path("../../Python")
     os.chdir(pad_correct)
 
-zwalm_gpd_subbasins = gpd.read_file("data/Zwalm_shape/OS266.shp")
+zwalm_gpd_subbasins = gpd.read_file("data_github\OS266.shp")
 circumference_zwalm = zwalm_gpd_subbasins.unary_union
 d = {'PolygonId': 15, 'Area': circumference_zwalm.area, 'Subbasin':0,'geometry':circumference_zwalm}
 zwalm_gpd = zwalm_gpd_subbasins.append(d, ignore_index= True)
