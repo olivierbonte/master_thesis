@@ -60,7 +60,8 @@ for i in np.arange(1,len(keys_EP)):
         )
         )# type: ignore 
 gdf_EP_info['name'] = keys_EP
-
+if not os.path.exists('data/Zwalm_data/preprocess_output'):
+    os.makedirs('data/Zwalm_data/preprocess_output')
 gdf_P_info.to_pickle('data/Zwalm_data/preprocess_output/gdf_P_info.pkl')
 gdf_EP_info.to_pickle('data/Zwalm_data/preprocess_output/gdf_EP_info.pkl')
 
