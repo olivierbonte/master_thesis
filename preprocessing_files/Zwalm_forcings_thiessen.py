@@ -10,8 +10,8 @@ from itertools import combinations
 import hvplot
 import hvplot.pandas
 pad = Path(os.getcwd())
-if pad.name != "Python":
-    pad_correct = Path("../../Python")
+if pad.name == "preprocessing_files":
+    pad_correct = pad.parent
     os.chdir(pad_correct)
 from functions.pre_processing import custom_thiessen_polygons
 #pyright: reportUnboundVariable=false
