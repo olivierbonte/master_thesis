@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import os
 pad = Path(os.getcwd())
-if pad.name != "Python":
-    pad_correct = Path("../../Python")
+if pad.name == "preprocessing_files":
+    pad_correct = pad.parent
     os.chdir(pad_correct)
 write = True
 
@@ -84,7 +84,7 @@ for i in range(len(landusenumbers)):
         data = bool_full_image,
         dims = ['t'],
         coords = dict(t = LAI_xr['t'].values)
-    )
+    )#type:ignore
     LAI_xr[name] = da_add
 
 #  Now calculate spatial average per category

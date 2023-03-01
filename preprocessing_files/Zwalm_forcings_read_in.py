@@ -8,8 +8,8 @@ from pathlib import Path
 import pickle 
 import pytz
 pad = Path(os.getcwd())
-if pad.name != "Python":
-    pad_correct = Path("../../Python")
+if pad.name == "preprocessing_files":
+    pad_correct = pad.parent
     os.chdir(pad_correct)
 from functions.pre_processing import make_pd_unique_timesteps
 
