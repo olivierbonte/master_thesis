@@ -7,10 +7,15 @@ import hvplot.xarray
 import hvplot.dask
 from pathlib import Path
 import os
+import zipfile
+
 pad = Path(os.getcwd())
-if pad.name != "Python":
-    pad_correct = Path("../../Python")
+if pad.name == "preprocessing_files":
+    pad_correct = pad.parent
     os.chdir(pad_correct)
+os.system('cmd /c zenodo_get 10.5281/zenodo.7688784')
+with zipfile.ZipFile("data_github.zip", 'r') as zip_ref:
+    zip_ref.extractall('data_github')
 
 def print_raster(raster):
     print(
@@ -19,9 +24,10 @@ def print_raster(raster):
         f"bounds: {raster.rio.bounds()}\n"
         f"CRS: {raster.rio.crs}\n"
     )
-landuse = rioxarray.open_rasterio('data/Zwalm_bodembedekking'+ #type:ignore
-'/wetransfer_landgebruik_2022-11-07_0921/'+
-'Landuse_Vlaanderen_Wallonie_final.sdat')
+# landuse = rioxarray.open_rasterio('data/Zwalm_bodembedekking'+ #type:ignore
+# '/wetransfer_landgebruik_2022-11-07_0921/'+
+# 'Landuse_Vlaanderen_Wallonie_final.sdat')
+landuse = rioxarray.open_rasterio('data_github/Landuse_Vlaanderen_Wallonie_final.sdat')#type:ignore
 landuse = landuse.chunk('auto')#type:ignore
 landuse_nonan = landuse.where(landuse != 255)
 
@@ -32,6 +38,7 @@ landuse_nonan = landuse.where(landuse != 255)
 
 s1_full = xr.open_dataset('data/s0_OpenEO/S0_zwalm.nc', decode_coords='all')#type:ignore
 s1_full= s1_full.rio.write_crs(32631, inplace = True) # type: ignore #manually set crs
+s1_gamma0_full = xr.open_dataset('data/g0_OpenEO/g0_zwalm.nc')
 
 print("Sentinel Raster:\n----------------\n")
 print_raster(s1_full)
@@ -49,10 +56,14 @@ landuse_reprojected = landuse_reprojected.assign_coords({
 #landuse back to uint8 (more data efficient) and in Sentinel 1
 landuse_reprojected = landuse_reprojected.astype(np.uint8)
 s1_full['landuse'] = landuse_reprojected.isel(band = 0) #drop the band
+s1_gamma0_full['landuse'] = landuse_reprojected.isel(band = 0) #drop the band
 
 #%% Write landuse and S1 to new NetCDF
 s1_full.to_netcdf('data/s0_OpenEO/S0_zwalm_landuse.nc', mode = 'w')
-
+s1_full.close()
+s1_gamma0_full.close()
+s1_full.to_netcdf('data/s0_OpenEO/S0_zwalm.nc', mode = 'a') #append to previous dataframe to save space
+s1_gamma0_full.to_netcdf('data/g0_OpenEO/g0_zwalm.nc', mode = 'a')
 #############################################
 # %% RESAMPLING FOR LAI: 
 ############################################
