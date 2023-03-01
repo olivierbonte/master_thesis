@@ -66,7 +66,7 @@ gdf_P_info.to_pickle('data/Zwalm_data/preprocess_output/gdf_P_info.pkl')
 gdf_EP_info.to_pickle('data/Zwalm_data/preprocess_output/gdf_EP_info.pkl')
 
 #Data on Zwalm: use epsg 31370 for distance calculation
-zwalm_lambert = gpd.read_file(Path("data\Zwalm_shape\zwalm_shapefile_emma_31370.shp"))
+zwalm_lambert = gpd.read_file(Path("data/Zwalm_shape/zwalm_shapefile_emma_31370.shp"))
 zwalm_lambert_centroid = zwalm_lambert['geometry'].centroid
 zwalm_area_shape = zwalm_lambert.loc[0,'geometry']
 
