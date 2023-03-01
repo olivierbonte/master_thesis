@@ -6,6 +6,7 @@
 
 data/
 */data/
+*/data_github/
 
 */temp_*/
 
@@ -19,5 +20,11 @@ data/
 *.png
 *.pdf
 *.svg
-
+*.shp
+*.shx
+*.prj
+*.cpg
+*.dbf
+*.zip
+*.txt
 
