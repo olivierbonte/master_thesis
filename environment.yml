@@ -23,7 +23,8 @@ dependencies:
 - seaborn
 - python-dateutil
 - contextily
+- openeo
 - pip
 - pip:
   - pywaterinfo
-  - openeo
+  - zenodo-get
