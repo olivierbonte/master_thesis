@@ -13,7 +13,7 @@ pad = Path(os.getcwd())
 if pad.name == "preprocessing_files":
     pad_correct = pad.parent
     os.chdir(pad_correct)
-os.system('cmd /c zenodo_get 10.5281/zenodo.7688784')
+os.system('zenodo_get 10.5281/zenodo.7688784')
 with zipfile.ZipFile("data_github.zip", 'r') as zip_ref:
     zip_ref.extractall('data_github')
 
@@ -60,10 +60,10 @@ s1_gamma0_full['landuse'] = landuse_reprojected.isel(band = 0) #drop the band
 
 #%% Write landuse and S1 to new NetCDF
 s1_full.to_netcdf('data/s0_OpenEO/S0_zwalm_landuse.nc', mode = 'w')
-s1_full.close()
-s1_gamma0_full.close()
-s1_full.to_netcdf('data/s0_OpenEO/S0_zwalm.nc', mode = 'a') #append to previous dataframe to save space
-s1_gamma0_full.to_netcdf('data/g0_OpenEO/g0_zwalm.nc', mode = 'a')
+# s1_full.close()
+# s1_gamma0_full.close()
+# s1_full.to_netcdf('data/s0_OpenEO/S0_zwalm.nc', mode = 'a') #append to previous dataframe to save space
+s1_gamma0_full.to_netcdf('data/g0_OpenEO/g0_zwalm_landuse.nc')
 #############################################
 # %% RESAMPLING FOR LAI: 
 ############################################
