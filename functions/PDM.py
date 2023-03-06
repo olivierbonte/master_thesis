@@ -103,6 +103,11 @@ def PDM(P:np.ndarray, EP:np.ndarray, t, area:np.float32, deltat, deltatout, para
 
     #constants used throughout the model
     Smax = (b_param*cmin+cmax)/(b_param+1) #\bar{c} as defined in (9), cf. Appendix A
+    if Smax == cmin:
+        raise ValueError("Risk of zero division error")
+    if cmax <= cmin:
+        cmax = cmin + 1
+        Warning("cmax was smaller or equal to cmin. Therefore, cmax was adapted to cmin + 1")
     aream2 = area*1000**2 #are from km^2 to m^2
     #for linear reservoir, see (26)
     delta1star = np.exp(-deltat/k1)
@@ -115,7 +120,7 @@ def PDM(P:np.ndarray, EP:np.ndarray, t, area:np.float32, deltat, deltatout, para
     else:
         omega_0 = (k1*(delta1star - 1)-k2*(delta2star -1))/(k2 - k1)
         omega_1 = (k2*(delta2star - 1)*delta1star - k1*(delta1star - 1)*delta2star)/(k2-k1)
-    @jit(nopython = True)
+    @jit(nopython = True, error_model = 'numpy')
     def numba_start():
         #initialisations of variables:
         Eiacc = np.zeros(t_length, dtype = np.float32) #actual evaporation [mm/h], cf (8)
@@ -203,8 +208,12 @@ def PDM(P:np.ndarray, EP:np.ndarray, t, area:np.float32, deltat, deltatout, para
 
             ### GROUNDWATER STORAGE S3 ###
             if m == 3:
-                S3[i] = S3[i-1] - 1/(3*kb*S3[i-1]**2)*(np.exp(-3*deltat*kb*S3[i-1]**2)-1)*(di[i]-kb*S3[i-1]**3) # (24)
-                qb[i] = kb*S3[i]**3
+                if S3[i-1] > 0:
+                    S3[i] = S3[i-1] - 1/(3*kb*S3[i-1]**2)*(np.exp(-3*deltat*kb*S3[i-1]**2)-1)*(di[i]-kb*S3[i-1]**3) # (24)
+                    qb[i] = kb*S3[i]**3
+                else: #prevent zero division erro 
+                    S3[i-1] = 0
+                    qb[i] = 0
             elif m == 2:
                 #Based on solution of horton izzard equation!
                 #This solution is presented in Moore and Bell (2002) equations (A.3) and (A.4)
@@ -318,7 +327,8 @@ P:np.ndarray, EP:np.ndarray,area:np.float32, deltat, deltatout, t_model:np.ndarr
     t_calibration: np.ndarray, dtype = numpy.datetime64
         sequence of timesteps for which the model its performance metric will be computed
     Qobs: pd.Series
-        Observatoinal flows in the desired time resolution
+        Observatoinal flows in the desired time resolution. Should contain at least the timestaps 
+        of calibration
 
     Returns
     -------
@@ -405,6 +415,5 @@ P:np.ndarray, EP:np.ndarray,area:np.float32, deltat, deltatout, t_model:np.ndarr
     # i, parameters, P, EP, t_model, area, deltat, deltatout,t_calibration,Qobs, metric
     # ) for i in range(n_particles))
     return performances
-
 
 
