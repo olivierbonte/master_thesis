@@ -17,6 +17,8 @@ write = True
 #use decode_coords = 'all' for max compatiblity with rioxarray
 s1_xr = xr.open_dataset('data/s0_OpenEO/S0_zwalm_landuse.nc',decode_coords='all')
 s1_xr = s1_xr.chunk({'t':20}) #chunck per 20 timesteps
+s1_xr_gamma0 = xr.open_dataset('data/g0_OpenEO/g0_zwalm_landuse.nc',decode_coords='all')
+s1_xr_gamma0 = s1_xr_gamma0.chunk({'t':20}) #chunck per 20 timesteps
 s1_xr['landuse'] = s1_xr['landuse'].astype(np.uint8)
 LAI_xr = xr.open_dataset('data/LAI/LAI_cube_Zwalm_landuse.nc', decode_coords='all')
 LAI_xr = LAI_xr.chunk('auto')
@@ -30,15 +32,36 @@ landusenumbers = [1,2,3,4,5]
 name_list = []
 for i in range(len(landusenumbers)):
     VV_abs_temp = s1_xr['VV'].where(s1_xr['landuse'] == landusenumbers[i])
+    VH_abs_temp = s1_xr['VH'].where(s1_xr['landuse'] == landusenumbers[i])
     name = 'VV' + landuseclasses[i]
+    name_VH = 'VH' + landuseclasses[i] 
     name_list.append(name)
+    name_list.append(name_VH)
     s1_xr[name] = 10*np.log10(VV_abs_temp.mean(dim = ['y','x'], skipna=True)) 
+    s1_xr[name_VH] = 10*np.log10(VH_abs_temp.mean(dim = ['y','x'], skipna=True)) 
+    #also for gamma0
+    VV_abs_temp_gamma0 = s1_xr_gamma0['VV'].where(s1_xr_gamma0['landuse'] == landusenumbers[i])
+    VH_abs_temp_gamma0 = s1_xr_gamma0['VH'].where(s1_xr_gamma0['landuse'] == landusenumbers[i])
+    s1_xr_gamma0[name] = 10*np.log10(VV_abs_temp_gamma0.mean(dim = ['y','x'], skipna=True)) 
+    s1_xr_gamma0[name_VH] = 10*np.log10(VH_abs_temp_gamma0.mean(dim = ['y','x'], skipna=True)) 
 name_list.append('Orbitdirection')
 #general average
 s1_xr['VV_avg'] = 10*np.log10(s1_xr['VV'].mean(dim = ['y','x'], skipna=True))
+s1_xr['VH_avg'] = 10*np.log10(s1_xr['VH'].mean(dim = ['y','x'], skipna=True))
+s1_xr_gamma0['VV_avg'] = 10*np.log10(s1_xr_gamma0['VV'].mean(dim = ['y','x'], skipna=True))
+s1_xr_gamma0['VH_avg'] = 10*np.log10(s1_xr_gamma0['VH'].mean(dim = ['y','x'], skipna=True))
+s1_xr_gamma0['lia_avg'] = s1_xr_gamma0['local_incidence_angle'].mean(dim = ['y','x'], skipna= True)
+
 name_list.append('VV_avg')
+name_list.append('VH_avg')
+name_list_gamma0 = name_list.copy()
+name_list_gamma0.append('lia_avg')
+
+# %% convert to pandas
 pd_s1_tseries = s1_xr[name_list].to_pandas()
+pd_s1_gamma0_tseries = s1_xr_gamma0[name_list_gamma0].to_pandas()
 pd_s1_tseries[name_list].groupby('Orbitdirection').plot()
+pd_s1_gamma0_tseries[name_list_gamma0].groupby('Orbitdirection').plot()
 timestamps_s1 = pd_s1_tseries.index
 
 ###############################################
@@ -136,15 +159,18 @@ pd_LAI_tseries_filled = pd_LAI_tseries.copy()
 t_plotting = pd.date_range(pd_LAI_tseries_filled.index[0], timestamps_s1[-1], freq = 'H')#type:ignore
 pd_plotting_dict = {}
 pd_plotting_dict['t'] = t_plotting
+timestamps_s1_gamma0 = pd_s1_gamma0_tseries.index
 for i in range(len(landusenumbers)):
     LAI_ts = pd_LAI_tseries[name_list_LAI[i]]
     LAI_ts = LAI_ts.dropna() #only fit interpolator on not nans
     if len(LAI_ts) > 0:
         f = scipy.interpolate.PchipInterpolator(LAI_ts.index, LAI_ts)
         LAI_ts_s1 =f(timestamps_s1)
+        LAI_ts_s1_gamma0 =f(timestamps_s1_gamma0)
         LAI_filled = f(pd_LAI_tseries_filled.index)
         LAI_plotting = f(t_plotting)
         pd_s1_tseries[name_list_LAI[i]] = LAI_ts_s1
+        pd_s1_gamma0_tseries[name_list_LAI[i]] = LAI_ts_s1_gamma0
         pd_LAI_tseries_filled[name_list_LAI[i]] = LAI_filled
         pd_plotting_dict[name_list_LAI[i]] = LAI_plotting
 
@@ -182,6 +208,7 @@ ax.legend(og_names + interpol_names, ncol = 2)
 # %% write out timeseries
 if write: 
     pd_s1_tseries.to_csv('data/s0_OpenEO/s1_timeseries.csv')
+    pd_s1_gamma0_tseries.to_csv('data/g0_OpenEO/s1_g0_timeseries.csv')
     pd_LAI_tseries.to_csv('data/LAI/LAI_timeseries.csv')
     pd_plotting.to_csv('data/LAI/LAI_plotting.csv')
     print('Dataframes saved to csv')
