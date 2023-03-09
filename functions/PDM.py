@@ -1,15 +1,15 @@
 import numpy as np
-from numba import jit
+import scipy
 import pandas as pd
 import os
 from pathlib import Path
-import scipy
+from numba import jit
+from joblib import Parallel, delayed
 pad = Path(os.getcwd())
 if pad.name != "Python":
     pad_correct = Path("../../Python")
     os.chdir(pad_correct)
 from functions.performance_metrics import NSE, mNSE
-from joblib import Parallel, delayed
 
 
 def PDM(P:np.ndarray, EP:np.ndarray, t, area:np.float32, deltat, deltatout, parameters, m = 3):
@@ -416,4 +416,101 @@ P:np.ndarray, EP:np.ndarray,area:np.float32, deltat, deltatout, t_model:np.ndarr
     # ) for i in range(n_particles))
     return performances
 
+def parameter_sampling(parameter_names,bounds, n_samples):
+    """
+    Samples parameters within a uniform distribution.
+    Choice of how many parameters to sample
 
+    Parameters
+    ----------
+    parameter_names : list
+        names of parameters in order of the bounds
+    bounds: list
+        list of tuples with min and max values
+    n_samples : int
+        number of samples to generate
+
+    Returns
+    -------
+    pd_samples: pandas.DataFrame
+        dataframe with the parameter names and a sample value
+
+    """
+    np.random.seed(56) #set a fixed random seed
+    samples_dict = {}
+    for i, par_name in enumerate(parameter_names):
+        samples_dict[par_name] = np.random.uniform(
+            low = bounds[i][0], high = bounds[i][1], size = n_samples
+        )
+    pd_samples = pd.DataFrame(samples_dict)
+    return pd_samples
+
+def Nelder_Mead_calibration(parameters, param_names, param_bounds, performance_metric, P, EP,
+                            area, deltat, deltatout, t_model, t_calibration, Qobs, *args, **kwargs):
+    """
+    Neler-Mead calibration of the PDM on a desired performance metric and given calibration period.
+    Nelder-Mead implementation as given by `scipy.optimize.minimize(method = 'Nelder-Mead') with xatol = 1e-4, 
+    fatol = 1e-4 and adaptive = False as options 
+    (cf https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html#scipy.optimize.minimize)
+    
+    Parameters
+    ----------
+    parameters: numpy.ndarray
+        Values of the parameters in order as they normally appear in the dataframe of PDM
+    param_names: pandas.Index
+        Names of the parameters in the order that they are given in PDM
+    param_bounds: list
+        List of tuples with the bounds of the parameters
+    performance_metric: string
+        For current implementation, either 'NSE' or 'mNSE'
+    P: numpy.ndarray
+        rainfall intensity [mm/h]. Preferably provided in np.float32
+    EP: numpy.ndarray
+        evapotranspiration [mm/h]. Preferably provided in np.float32
+    area: numpy.float32
+        area of catchment [km^2]
+    deltat: float or int
+        internal time resolution used by the model. Note that this time resolution
+        should also be present in forcings (P and EP) [h]
+    deltatout: float or int
+        desired time resolution of the modelled output. Should be larger or equal to deltat [h]
+    t_model: np.ndarray, dtype = numpy.datetime64
+        sequence of timesteps for which model will run
+    t_calibration: np.ndarray, dtype = numpy.datetime64
+        sequence of timesteps for which the model its performance metric will be computed
+    Qobs: pd.Series
+        Observatoinal flows in the desired time resolution. Should contain at least the timestaps 
+        of calibration
+    *args: None
+        arguments for scipy.optimize.minimize(), not for the Nelder-Mead method
+    ** kwargs: None
+        keyword arguments for scipy.optimize.minimize(), not for the Nelder-Mead method
+    Returns
+    -------
+    parameters_calibrated: pd.DataFrame
+        calibrated parameterset
+    """
+    def goal_function(param, info):
+        perf_mertric = -PDM_calibration_wrapper(
+            param, param_names, performance_metric ,P, EP, area, deltat,
+            deltatout, t_model, t_calibration, Qobs
+        )
+        if info['Nfeval']%50 == 0:
+            print('Number of evaluation:' + str(info['Nfeval']))
+            print(param)
+        info['Nfeval'] += 1
+        return perf_mertric
+    
+    parameters = parameters.flatten() #1 dimension for minimisation 
+    optimization_out = scipy.optimize.minimize(
+        goal_function, parameters, method = 'Nelder-Mead',
+        #callback = callback_personal_test, 
+        bounds = param_bounds,
+        options = {'fatol':0.001, 'xatol':0.001, 'adaptive':False}, 
+        #with Adaptive = True an adpated alogrithm!  Matlab default is 1e-4. I used 1e-3
+        #important to add solver specific options onder 'options'! 
+        args = ({'Nfeval':0},),
+        *args, **kwargs
+    ) #has to be (n,) for initial valeus
+    return optimization_out
+    
