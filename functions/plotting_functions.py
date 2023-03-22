@@ -128,3 +128,25 @@ def plot_continuous_raster(
     else:  # allows custom colorbar
         fig = im
     return fig, ax
+
+def plot_tf_history(history):
+    """
+    Function to plot the training and validation loss of training with tensorflow
+
+    Inputs
+    ------
+    history: keras.callbacks.History
+    
+    Returns
+    ------
+    fig: matplotlib.figure.Figure
+
+    ax: matplotlib.pyplot.axis
+
+    
+    """
+    fig, ax = plt.subplots()
+    ax.plot(range(len(history.history["loss"])),history.history["loss"],label = 'Training loss')
+    ax.plot(range(len(history.history["loss"])),history.history["val_loss"], label = 'Validation loss')
+    ax.legend()
+    return fig, ax
