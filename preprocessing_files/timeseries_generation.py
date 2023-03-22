@@ -51,9 +51,31 @@ s1_xr['VH_avg'] = 10*np.log10(s1_xr['VH'].mean(dim = ['y','x'], skipna=True))
 s1_xr_gamma0['VV_avg'] = 10*np.log10(s1_xr_gamma0['VV'].mean(dim = ['y','x'], skipna=True))
 s1_xr_gamma0['VH_avg'] = 10*np.log10(s1_xr_gamma0['VH'].mean(dim = ['y','x'], skipna=True))
 s1_xr_gamma0['lia_avg'] = s1_xr_gamma0['local_incidence_angle'].mean(dim = ['y','x'], skipna= True)
-
+#Average over agriculture and pasture combined
+s1_xr['VV_past_agr'] = 10*np.log10(s1_xr['VV'].where(
+        (s1_xr['landuse'] == 3) | (s1_xr['landuse'] == 4)
+    ).mean(
+        dim = ['y','x'], skipna=True
+    ))
+s1_xr['VH_past_agr'] = 10*np.log10(s1_xr['VH'].where(
+        (s1_xr['landuse'] == 3) | (s1_xr['landuse'] == 4)
+    ).mean(
+        dim = ['y','x'], skipna=True
+    ))
+s1_xr_gamma0['VV_past_agr'] = 10*np.log10(s1_xr_gamma0['VV'].where(
+        (s1_xr_gamma0['landuse'] == 3) | (s1_xr_gamma0['landuse'] == 4)
+    ).mean(
+        dim = ['y','x'], skipna=True
+    ))
+s1_xr_gamma0['VH_past_agr'] = 10*np.log10(s1_xr_gamma0['VH'].where(
+        (s1_xr_gamma0['landuse'] == 3) | (s1_xr_gamma0['landuse'] == 4)
+    ).mean(
+        dim = ['y','x'], skipna=True
+    ))
 name_list.append('VV_avg')
 name_list.append('VH_avg')
+name_list.append('VV_past_agr')
+name_list.append('VH_past_agr')
 name_list_gamma0 = name_list.copy()
 name_list_gamma0.append('lia_avg')
 
@@ -83,10 +105,16 @@ max_positions = np.where(nr_nonan_list == max(nr_nonan_list))
 mask = ~np.isnan(LAI_xr['LAI'].isel(t=max_positions[0][0]))
 nr_pixels_landuse_masked = np.sum(mask).values#type:ignore
 bool_name_list = []
-for i in range(len(landusenumbers)):
-    da_landcat = da_landuse.where(da_landuse == landusenumbers[i])
+for i in range(len(landusenumbers)+1): #add 1 iteration for agriculture + pasture
+    if i < len(landusenumbers):
+        da_landcat = da_landuse.where(da_landuse == landusenumbers[i])
+    else:
+        da_landcat = da_landuse.where((da_landuse == 3) | (da_landuse == 4))
     da_landcat = da_landcat.where(mask == 1) #only WITHIN catchment!
-    da_LAI_landcat = LAI_xr['LAI'].where(da_landuse == landusenumbers[i])
+    if i < len(landusenumbers):
+        da_LAI_landcat = LAI_xr['LAI'].where(da_landuse == landusenumbers[i])
+    else:
+        da_LAI_landcat = LAI_xr['LAI'].where((da_landuse == 3) | (da_landuse == 4))
     da_LAI_landcat = da_LAI_landcat.where(mask == 1) #only WITHIN catchment!
     nr_pixels_landcat = np.sum(~np.isnan(da_landcat)).values#type:ignore
     bool_full_image = []
@@ -101,7 +129,10 @@ for i in range(len(landusenumbers)):
                 bool_full_image.append(1)
         else:
             bool_full_image.append(0)
-    name = 'bool_full_image' + landuseclasses[i]
+    if i < len(landusenumbers):
+        name = 'bool_full_image' + landuseclasses[i]
+    else:
+        name = 'bool_full_image_past_agr'
     bool_name_list.append(name)
     da_add = xr.DataArray(
         data = bool_full_image,
@@ -112,10 +143,16 @@ for i in range(len(landusenumbers)):
 
 #  Now calculate spatial average per category
 name_list_LAI = []
-for i in range(len(landusenumbers)):
-    LAI_temp = LAI_xr['LAI_pv'].where(LAI_xr['landuse'] == landusenumbers[i])
+for i in range(len(landusenumbers)+1):
+    if i < len(landusenumbers):
+        LAI_temp = LAI_xr['LAI_pv'].where(LAI_xr['landuse'] == landusenumbers[i])
+    else:
+        LAI_temp = LAI_xr['LAI_pv'].where((LAI_xr['landuse'] == 3) | (LAI_xr['landuse'] == 4))
     LAI_temp = LAI_temp.where(LAI_xr[bool_name_list[i]] == 1) #selection based on frac nan!
-    name = 'LAI' + landuseclasses[i]
+    if i < len(landusenumbers):
+        name = 'LAI' + landuseclasses[i]
+    else:
+        name = 'LAI_past_agr'
     name_list_LAI.append(name)
     LAI_xr[name] = LAI_temp.mean(dim = ['y','x'],skipna=True)
 pd_LAI_tseries = LAI_xr[name_list_LAI].to_pandas()
@@ -160,7 +197,8 @@ t_plotting = pd.date_range(pd_LAI_tseries_filled.index[0], timestamps_s1[-1], fr
 pd_plotting_dict = {}
 pd_plotting_dict['t'] = t_plotting
 timestamps_s1_gamma0 = pd_s1_gamma0_tseries.index
-for i in range(len(landusenumbers)):
+name_list_LAI_interp = []
+for i in range(len(name_list_LAI)):
     LAI_ts = pd_LAI_tseries[name_list_LAI[i]]
     LAI_ts = LAI_ts.dropna() #only fit interpolator on not nans
     if len(LAI_ts) > 0:
@@ -173,6 +211,7 @@ for i in range(len(landusenumbers)):
         pd_s1_gamma0_tseries[name_list_LAI[i]] = LAI_ts_s1_gamma0
         pd_LAI_tseries_filled[name_list_LAI[i]] = LAI_filled
         pd_plotting_dict[name_list_LAI[i]] = LAI_plotting
+        name_list_LAI_interp.append(name_list_LAI[i])
 
 #plot the filled datastet
 fig, ax = plt.subplots(figsize = (10,7))
@@ -185,18 +224,18 @@ ax.set_ylabel('LAI')
 ## plot interpolated values on original data
 fig, ax = plt.subplots(figsize = (15,10))
 pd_LAI_tseries[name_list_LAI].plot(ax = ax, marker = '.', linestyle = 'None')
-pd_s1_tseries[name_list_LAI[:-1]].plot.line(ax = ax, marker = '*', linestyle = 'None')
+pd_s1_tseries[name_list_LAI_interp].plot.line(ax = ax, marker = '*', linestyle = 'None')
 
 ## Final plot
 pd_plotting = pd.DataFrame(pd_plotting_dict)
 pd_plotting = pd_plotting.set_index('t')
 fig, ax = plt.subplots(figsize = (10,7))
-pd_LAI_tseries[name_list_LAI[:-1]].plot(ax = ax, marker = '.', linestyle = 'None')
+pd_LAI_tseries[name_list_LAI_interp].plot(ax = ax, marker = '.', linestyle = 'None')
 colors_used = [plt.gca().lines[i].get_color() for i in range(len(landusenumbers)-1)]
-pd_plotting[name_list_LAI[:-1]].plot(ax = ax, color = colors_used)
-og_names = ['Urban','Forest','Pasture','Agriculture']
+pd_plotting[name_list_LAI_interp].plot(ax = ax, color = colors_used)
+og_names = ['Urban','Forest','Pasture','Agriculture','Pasture and Agriculture']
 interpol_names = ['Urban: interpolated','Forest: interpolated','Pasture: interpolated',
-'Agriculture: interpolated']
+'Agriculture: interpolated','Pasture and agriuclutre: interpolated']
 ax.legend(og_names + interpol_names, ncol = 2)
 #Even further optimised this figure in Chapter_data.ipynb 
 
