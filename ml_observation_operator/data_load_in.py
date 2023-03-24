@@ -69,7 +69,7 @@ for i in range(features.shape[0]):
         dt_temp = features.index[i] - features.index[i-1]#type:ignore
         dt_temp = dt_temp.total_seconds()/(3600*24)
     deltat_t_arr[i] = dt_temp
-features['deltat_t'] = deltat_t_arr
+features['delta_t'] = deltat_t_arr
 
 #sine and cosine features
 features['year_sin'] = np.sin(features.index.day_of_year*2*np.pi/365.2425)#type:ignore
