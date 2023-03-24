@@ -16,6 +16,7 @@ data_github/
 
 */output/*
 .vscode
+*/trial_*/
 
 *.png
 *.pdf
