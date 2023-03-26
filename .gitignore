@@ -9,6 +9,8 @@ data/
 data_github/
 
 */temp_*/
+info/*
+snap/*
 
 */.ipynb_checkpoints/*
 
