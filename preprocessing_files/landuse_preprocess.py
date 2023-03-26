@@ -39,6 +39,7 @@ landuse_nonan = landuse.where(landuse != 255)
 s1_full = xr.open_dataset('data/s0_OpenEO/S0_zwalm.nc', decode_coords='all')#type:ignore
 s1_full= s1_full.rio.write_crs(32631, inplace = True) # type: ignore #manually set crs
 s1_gamma0_full = xr.open_dataset('data/g0_OpenEO/g0_zwalm.nc')
+s1_gamma0_full= s1_gamma0_full.rio.write_crs(32631, inplace = True) # type: ignore #manually set crs
 
 print("Sentinel Raster:\n----------------\n")
 print_raster(s1_full)
@@ -63,7 +64,7 @@ s1_full.to_netcdf('data/s0_OpenEO/S0_zwalm_landuse.nc', mode = 'w')
 # s1_full.close()
 # s1_gamma0_full.close()
 # s1_full.to_netcdf('data/s0_OpenEO/S0_zwalm.nc', mode = 'a') #append to previous dataframe to save space
-s1_gamma0_full.to_netcdf('data/g0_OpenEO/g0_zwalm_landuse.nc')
+s1_gamma0_full.to_netcdf('data/g0_OpenEO/g0_zwalm_landuse.nc', mode = 'w')
 #############################################
 # %% RESAMPLING FOR LAI: 
 ############################################
