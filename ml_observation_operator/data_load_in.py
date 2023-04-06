@@ -20,8 +20,8 @@ ep_zwalm = pd.read_pickle(preprocess_output_folder/'zwalm_ep_thiessen.pkl')
 # print('\n')
 # print(f'{ep_zwalm=}')
 #Parameterset
-param = pd.read_csv("data/Zwalm_PDM_parameters/p1_opt_param_mNSE_PSO_70_particles_qconst_strict.csv", index_col = False)
-param = param.drop(param.columns[0], axis = 1)
+param = pd.read_csv("data/Zwalm_PDM_parameters/NM_opt_param.csv")
+#param = param.drop(param.columns[0], axis = 1)
 #print(f'{param=}')
 
 #Area Zwalm
@@ -92,18 +92,27 @@ tbegin_validation = pd.Timestamp(datetime(year = 2021, month = 1, day = 1))
 print('Calibration period: ' + str(t1_features) + ' until ' + str(tend_calibration))
 print('Validation period: ' + str(tbegin_validation) + ' until ' + str(tend_features))
 
-X_train = features[t1_features:tend_calibration]
-X_test = features[tbegin_validation:tend_features]
-X_full = features[t1_features:tend_features]
+X_train_all = features[t1_features:tend_calibration]
+X_test_all = features[tbegin_validation:tend_features]
+X_full_all = features[t1_features:tend_features]
  
 #select only on days with available training data! 
-y_train = Cstar[X_train.index]
-y_test = Cstar[X_test.index]
-y_full = Cstar[X_full.index]
+y_train = Cstar[X_train_all.index]
+y_test = Cstar[X_test_all.index]
+y_full= Cstar[X_full_all.index]
 
 print('----------------------------------------------------------\n')
 print('Data has been split up in X_train, X_test, y_train and y_test')
 print('------------------------------------------------------------\n')
+
+# %% Differentiate between the full dataset and the smaller, aggregated dataset
+X_train = X_train_all.iloc[:,~X_train_all.columns.str.endswith('past_agr')]
+X_test = X_test_all.iloc[:,~X_test_all.columns.str.endswith('past_agr')]
+X_full = X_full_all.iloc[:,~X_full_all.columns.str.endswith('past_agr')]
+
+X_train_small = X_train_all.iloc[:,~X_train_all.columns.str.endswith(('Forest','Pasture','Agriculture'))]
+X_test_small = X_test_all.iloc[:,~X_test_all.columns.str.endswith(('Forest','Pasture','Agriculture'))]
+X_full_small = X_full_all.iloc[:,~X_full_all.columns.str.endswith(('Forest','Pasture','Agriculture'))]
 
 
 # %% Save out features 
@@ -112,9 +121,17 @@ ML_data_pad = Path("data/Zwalm_data/ML_data")
 if not os.path.exists(ML_data_pad):
     os.mkdir(ML_data_pad)
 
+X_train_all.to_pickle(ML_data_pad/'X_train_all.pkl')
+X_test_all.to_pickle(ML_data_pad/'X_test_all.pkl')
+X_full_all.to_pickle(ML_data_pad/"X_full_all.pkl")
+
 X_train.to_pickle(ML_data_pad/'X_train.pkl')
 X_test.to_pickle(ML_data_pad/'X_test.pkl')
 X_full.to_pickle(ML_data_pad/"X_full.pkl")
+
+X_train_small.to_pickle(ML_data_pad/'X_train_small.pkl')
+X_test_small.to_pickle(ML_data_pad/'X_test_small.pkl')
+X_full_small.to_pickle(ML_data_pad/"X_full_small.pkl")
 
 y_train.to_pickle(ML_data_pad/"y_train.pkl")
 y_test.to_pickle(ML_data_pad/'y_test.pkl')
