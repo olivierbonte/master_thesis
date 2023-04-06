@@ -436,7 +436,7 @@ def reshaped_to_train_test(X_full_reshaped: np.ndarray, y_full_reshaped: np.ndar
         Time stamps of test data
     """
     t_train = t_reshaped[0:n_train_og-seq_length+1]
-    t_test = t_reshaped[n_train_og+-seq_length+1:]
+    t_test = t_reshaped[n_train_og-seq_length+1:]
     if output_dim == 2:
         X_full_flat = X_full_reshaped.reshape(X_full_reshaped.shape[0], -1)
         X_train = X_full_flat[0:n_train_og-seq_length+1,:]
