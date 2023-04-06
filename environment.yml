@@ -1,39 +1,42 @@
 name: thesis
 channels:
- - conda-forge
- - defaults
+  - conda-forge
+  - defaults
 dependencies:
-- python=3.10 
-- numpy
-- numba
-- matplotlib
-- pathlib
-- rasterio
-- xarray=2022.11.0
-- rioxarray
-- ipykernel
-- scipy
-- netCDF4
-- cartopy 
-- geoviews
-- hvplot
-- jupyterlab
-- fiona 
-- geopandas=0.11.*
-- dask
-- seaborn
-- python-dateutil
-- contextily
-- openeo
-- cudatoolkit=11.2
-- cudnn=8.1.0
-- scikit-learn=1.2.*
-- pip
-- pip:
-  - pywaterinfo
-  - zenodo-get
-  - tensorflow==2.11.*
-  - keras-tuner 
-  - pydot
-  - tensorflow-addons
-  - pyswarms
+  - python=3.10
+  - numpy
+  - numba
+  - matplotlib
+  - pathlib
+  - rasterio
+  - xarray=2022.11.0
+  - rioxarray
+  - ipykernel
+  - scipy
+  - netCDF4
+  - cartopy
+  - geoviews
+  - hvplot
+  - jupyterlab
+  - fiona
+  - geopandas=0.11.*
+  - dask
+  - seaborn
+  - python-dateutil
+  - contextily
+  - openeo
+  - cudatoolkit=11.2
+  - cudnn=8.1.0
+  - scikit-learn=1.2.*
+  - graphviz
+  - nodejs
+  - pip
+  - pip:
+      - pywaterinfo
+      - zenodo-get
+      - tensorflow<2.11
+      - tensorflow-addons
+      - keras-tuner
+      - pydot
+      - pyswarms
+      - typeguard==2.13.3
