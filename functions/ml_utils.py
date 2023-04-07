@@ -31,16 +31,16 @@ def general_sklearn_model(function, X_train, X_test, y_train, y_test,
     function: 
         sklearn function or pipeline. e.g. LinearRegression()
     X_train: np.ndarray
-        Array with features of size (n_samples_train, n_features)
+        Array with features of size (n_samples_train, n_features). Before normalisation only
     X_test: np.ndarray
-        Array with features of size (n_samples_test, n_features)
+        Array with features of size (n_samples_test, n_features). Before normalisation only
     y_train: np.ndarray
         Array with target of size (n_samples_train, 1)
     y_test: np.ndarray
         Array with target of size (n_samples_test, 1)
-    t_train: np.ndarray
+    t_train: pandas.DatetimeIndex
         Array with timestamps for training
-    t_test: pandas.core.indexes.datetimes.DatetimeIndex 
+    t_test: pandas.DatetimeIndex
         Array with timestamps for testing
     C_star: pandas.Series
         Series object with time as index and Cstar as feature
@@ -54,7 +54,7 @@ def general_sklearn_model(function, X_train, X_test, y_train, y_test,
     return_predictions: bool, default = False
         If true, y_train and y_test are added as ouptut
     save_predictions: bool, default = False
-        If True, predictions saved as pickle to pad
+        If True, predictions saved as pickle  and csv to pad
     pad: pathlib.Path, default = None
         if save_predictions is True, specify the path to save to here
     Returns
@@ -73,6 +73,7 @@ def general_sklearn_model(function, X_train, X_test, y_train, y_test,
     
 
     """
+    
     # t_index_train = X_train.index
     # t_index_test = X_test.index
     t_full = np.concatenate([t_train, t_test])
@@ -151,6 +152,8 @@ def general_sklearn_model(function, X_train, X_test, y_train, y_test,
             os.makedirs(pad)
         y_train_hat.to_pickle(pad/'y_train_hat.pickle')
         y_test_hat.to_pickle(pad/'y_test_hat.pickle')
+        y_train_hat.to_csv(pad/'y_train_hat.csv')
+        y_test_hat.to_csv(pad/'y_test_hat.csv')
     if return_predictions:
         return func, r2_train, r2_test, fig, ax, y_train_hat, y_test_hat
     else:   
@@ -180,9 +183,9 @@ def general_tensorflow_model(model, X_train, X_test, y_train,
         Vector with training targets (rows), non-normalised
     y_test: np.ndarray
         Vector with testing targets (rows), non-normalised
-    t_train: np.ndarray or pandas.DateTimeIndex
+    t_train: pandas.DateTimeIndex
         training instances (as datetime64[ns])
-    t_test: np.ndarray or pandas.DateTimeIndex
+    t_test: pandas.DateTimeIndex
         testing instances (as datetime64[ns])
     C_star: pandas.Series
         Series object with time as index and Cstar as feature
