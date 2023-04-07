@@ -1,11 +1,11 @@
 
 import xarray as xr
 from pathlib import Path
-import rasterio
+from osgeo import gdal  # UNCOMMENT TO WORK WITH OLD PROCESSING CHAIN
+import rasterio  # UNCOMMENT TO WORK WITH OLD PROCESSING CHAIN
 import rioxarray
 import warnings
 import numpy as np
-from osgeo import gdal
 import geopandas as gpd
 import datetime
 import netCDF4
@@ -40,7 +40,7 @@ def read_netcdf(filepath, epsg, transpose=False):
     ds = xr.open_dataset(filepath)
     if ds.rio.crs is not None:
         warnings.warn("CRS was already defined, but will be overwritten")
-    ds = ds.rio.write_crs("EPSG:"+str(epsg), inplace=True)
+    ds = ds.rio.write_crs("EPSG:" + str(epsg), inplace=True)
     if transpose:
         ds = ds.transpose('lat', 'lon')
     return ds
@@ -266,12 +266,12 @@ def custom_blockproc(im, block_sz):
     """
     h, w = im.shape
     m, n = block_sz
-    im_new = np.empty((int(h/2), int(w/2)))
+    im_new = np.empty((int(h / 2), int(w / 2)))
     x_iter = 0
     y_iter = 0
     for x in range(0, h, m):
         for y in range(0, w, n):
-            block = im[x:x+m, y:y+n]
+            block = im[x:x + m, y:y + n]
             values, counts = np.unique(block, return_counts=True)
             ind = np.argmax(counts)
             im_new[x_iter, y_iter] = values[ind]
@@ -361,15 +361,47 @@ def make_pd_unique_timesteps(pddf, t_column_name, t_start, t_end, freq):
     )
     return pddf_unique
 
+
+def retime_SAR(y_data, features):
+    """
+    Retime time indices of C* data according to on an ascending or descending path 
+
+    Parameters
+    ----------
+    y_data: pandas.DataFrame
+        Dataframe with both C* and time as an idex (with name 't')
+    features: pandas.DataFrame
+        DataFrame containing the ascending and descending column of the features combined witht time as index
+
+    Returns
+    -------
+    y_data: pandas.DataFrame
+        Dataframe with C* and retimed time indices
+    """
+    t_asc = features.loc[features['ascending'] == 1, :].index.map(lambda t:
+                                                                  t.replace(hour=18))
+    t_desc = features.loc[features['descending'] == 1, :].index.map(lambda t:
+                                                                    t.replace(hour=6))
+    time_hour = t_asc.union(t_desc)
+    t_begin = y_data.index[0]
+    t_end = y_data.index[-1].replace(hour=23, minute=59, second=59)
+    time_hour_used = time_hour[(time_hour > t_begin) & (time_hour < t_end)]
+    y_data = y_data.reset_index()
+    y_data['t'] = time_hour_used
+    y_data = y_data.set_index('t')
+    return y_data
+
 #################
 # Data reshaping
 #################
 
 # @njit
 
-#Funcion from 
-#https://github.com/kratzert/pangeo_lstm_example/blob/master/LSTM_for_rainfall_runoff_modelling.ipynb
-def reshape_data(x: np.ndarray, y: np.ndarray, t:np.ndarray,
+# Funcion from
+# https://github.com/kratzert/pangeo_lstm_example/blob/master/LSTM_for_rainfall_runoff_modelling.ipynb
+
+
+def reshape_data(x: np.ndarray, y: np.ndarray, t: np.ndarray,
                  seq_length: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Reshape matrix data into sample shape for LSTM training.
@@ -388,7 +420,7 @@ def reshape_data(x: np.ndarray, y: np.ndarray, t:np.ndarray,
 
     x_new = np.zeros((num_samples - seq_length + 1, seq_length, num_features))
     y_new = np.zeros((num_samples - seq_length + 1, 1))
-    t_new = t[seq_length -1:]
+    t_new = t[seq_length - 1:]
     for i in range(0, x_new.shape[0]):
         x_new[i, :, :num_features] = x[i:i + seq_length, :]
         y_new[i, :] = y[i + seq_length - 1, 0]
@@ -396,9 +428,7 @@ def reshape_data(x: np.ndarray, y: np.ndarray, t:np.ndarray,
     return x_new, y_new, t_new
 
 
-def reshaped_to_train_test(X_full_reshaped: np.ndarray, y_full_reshaped: np.ndarray,
-                           t_reshaped: np.ndarray, seq_length: int, n_train_og: int, 
-                           output_dim: int):
+def reshaped_to_train_test(X_full_reshaped: np.ndarray, y_full_reshaped: np.ndarray, t_reshaped: np.ndarray, seq_length: int, n_train_og: int, output_dim: int):
     """
     Split the reshaped (for LSTM) X and y to appropriate training and test sets based
     on the original number of training instances (before reshaping) and length of sequence
@@ -435,20 +465,20 @@ def reshaped_to_train_test(X_full_reshaped: np.ndarray, y_full_reshaped: np.ndar
     t_test: np.ndarray
         Time stamps of test data
     """
-    t_train = t_reshaped[0:n_train_og-seq_length+1]
-    t_test = t_reshaped[n_train_og-seq_length+1:]
+    t_train = t_reshaped[0:n_train_og - seq_length + 1]
+    t_test = t_reshaped[n_train_og - seq_length + 1:]
     if output_dim == 2:
         X_full_flat = X_full_reshaped.reshape(X_full_reshaped.shape[0], -1)
-        X_train = X_full_flat[0:n_train_og-seq_length+1,:]
-        X_test = X_full_flat[n_train_og-seq_length+1:,:]
-        y_train = y_full_reshaped[0:n_train_og-seq_length+1,:]
-        y_test = y_full_reshaped[n_train_og-seq_length+1:,:]
+        X_train = X_full_flat[0:n_train_og - seq_length + 1, :]
+        X_test = X_full_flat[n_train_og - seq_length + 1:, :]
+        y_train = y_full_reshaped[0:n_train_og - seq_length + 1, :]
+        y_test = y_full_reshaped[n_train_og - seq_length + 1:, :]
     elif output_dim == 3:
-        X_train = X_full_reshaped[0:n_train_og-seq_length+1,:,:]
-        X_test = X_full_reshaped[n_train_og-seq_length+1:,:,:]
-        y_train = y_full_reshaped[0:n_train_og-seq_length+1,:]
-        y_test = y_full_reshaped[n_train_og-seq_length+1:,:]
+        X_train = X_full_reshaped[0:n_train_og - seq_length + 1, :, :]
+        X_test = X_full_reshaped[n_train_og - seq_length + 1:, :, :]
+        y_train = y_full_reshaped[0:n_train_og - seq_length + 1, :]
+        y_test = y_full_reshaped[n_train_og - seq_length + 1:, :]
     else:
-        raise ValueError("For current implementation, specify output_dim is 2 or 3")
+        raise ValueError(
+            "For current implementation, specify output_dim is 2 or 3")
     return X_train, X_test, y_train, y_test, t_train, t_test
-
