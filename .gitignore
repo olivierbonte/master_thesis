@@ -1,6 +1,8 @@
 
 .ipynb_checkpoints
 
+c
+
 *.pyc
 *.log
 
@@ -11,6 +13,9 @@ data_github/
 */temp_*/
 info/*
 snap/*
+Gridsearch/
+hyperparam_tuning/
+*/lstm_tuning/*
 
 */.ipynb_checkpoints/*
 
