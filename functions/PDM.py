@@ -3,6 +3,7 @@ import scipy
 import pandas as pd
 import os
 import numba
+import warnings
 from pathlib import Path
 from numba import jit
 from joblib import Parallel, delayed
@@ -207,7 +208,7 @@ def PDM(P: np.ndarray, EP: np.ndarray, t, area: np.float32, deltat, deltatout, p
             return dummy_decorator
         else:
             def njit_with_numpy_error_model(func):
-                print('exectued with numba')
+                # print('exectued with numba')
                 return jit(func, nopython=True, error_model='numpy')
             return njit_with_numpy_error_model
 
@@ -389,33 +390,38 @@ def PDM(P: np.ndarray, EP: np.ndarray, t, area: np.float32, deltat, deltatout, p
     # tmod output: idea to only give output till last timestamp of input!
     freq_hour = str(deltatout) + 'H'
     tmod = pd.date_range(t[0], t[-1], freq=freq_hour)
-    # qmod output
-    nan_fill = ((len(qmodm3s) // (deltatout / deltat)) + 1) * \
-        deltatout / deltat - len(qmodm3s)
-    qmodm3s = np.append(qmodm3s, np.ones(int(nan_fill)) * np.nan)
-    qmodm3s = qmodm3s.reshape((-1, int(deltatout / deltat)))
-    qmodm3s = np.nanmean(qmodm3s, axis=1)
-    qmodm3s = qmodm3s[:len(tmod)]  # only select values in tmod!
 
-    nan_fill_bis = ((len(Cstar) // (deltatout / deltat)) + 1) * \
-        deltatout / deltat - len(Cstar)
-    # Cstar
-    Cstar = np.append(Cstar, np.ones(int(nan_fill_bis)) * np.nan)
-    Cstar = Cstar.reshape((-1, int(deltatout / deltat)))
-    Cstar = np.nanmean(Cstar, axis=1)
-    Cstar = Cstar[:len(tmod)]
+    # Suppress mean of empty slice warning
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+        # qmod output
+        nan_fill = ((len(qmodm3s) // (deltatout / deltat)) + 1) * \
+            deltatout / deltat - len(qmodm3s)
+        qmodm3s = np.append(qmodm3s, np.ones(int(nan_fill)) * np.nan)
+        qmodm3s = qmodm3s.reshape((-1, int(deltatout / deltat)))
+        qmodm3s = np.nanmean(qmodm3s, axis=1)
+        qmodm3s = qmodm3s[:len(tmod)]  # only select values in tmod!
 
-    # S1
-    S1 = np.append(S1, np.ones(int(nan_fill_bis)) * np.nan)
-    S1 = S1.reshape((-1, int(deltatout / deltat)))
-    S1 = np.nanmean(S1, axis=1)
-    S1 = S1[:len(tmod)]
+        nan_fill_bis = ((len(Cstar) // (deltatout / deltat)) + 1) * \
+            deltatout / deltat - len(Cstar)
+        
+        # Cstar
+        Cstar = np.append(Cstar, np.ones(int(nan_fill_bis)) * np.nan)
+        Cstar = Cstar.reshape((-1, int(deltatout / deltat)))
+        Cstar = np.nanmean(Cstar, axis=1)
+        Cstar = Cstar[:len(tmod)]
 
-    # S3
-    S3 = np.append(S3, np.ones(int(nan_fill_bis)) * np.nan)
-    S3 = S3.reshape((-1, int(deltatout / deltat)))
-    S3 = np.nanmean(S3, axis=1)
-    S3 = S3[:len(tmod)]
+        # S1
+        S1 = np.append(S1, np.ones(int(nan_fill_bis)) * np.nan)
+        S1 = S1.reshape((-1, int(deltatout / deltat)))
+        S1 = np.nanmean(S1, axis=1)
+        S1 = S1[:len(tmod)]
+
+        # S3
+        S3 = np.append(S3, np.ones(int(nan_fill_bis)) * np.nan)
+        S3 = S3.reshape((-1, int(deltatout / deltat)))
+        S3 = np.nanmean(S3, axis=1)
+        S3 = S3[:len(tmod)]
 
     pd_out = pd.DataFrame(
         {"qmodm3s": qmodm3s,
@@ -428,9 +434,8 @@ def PDM(P: np.ndarray, EP: np.ndarray, t, area: np.float32, deltat, deltatout, p
     return pd_out
 
 
-def PDM_calibration_wrapper(parameters: np.ndarray, columns: pd.Index, performance_metric: str,
-                            P: np.ndarray, EP: np.ndarray, area: np.float32, deltat, deltatout, t_model: np.ndarray,
-                            t_calibration: np.ndarray, Qobs: pd.Series, *args, **kwargs):
+def PDM_calibration_wrapper(parameters: np.ndarray, columns: pd.Index,
+                            performance_metric: str, P: np.ndarray, EP: np.ndarray, area: np.float32, deltat, deltatout, t_model: np.ndarray, t_calibration: np.ndarray, Qobs: pd.Series, *args, **kwargs):
     """
     Wrapper written around the PDM model to allow calibration with scipy.optimize.minimze().
     Based on NSE or mNSE
@@ -483,9 +488,8 @@ def PDM_calibration_wrapper(parameters: np.ndarray, columns: pd.Index, performan
     return performance
 
 
-def PDM_calibration_wrapper_PSO(parameters: np.ndarray, columns: pd.Index, performance_metric: str,
-                                P: np.ndarray, EP: np.ndarray, area: np.float32, deltat, deltatout, t_model: np.ndarray,
-                                t_calibration: np.ndarray, Qobs: pd.Series, *args, **kwargs):
+def PDM_calibration_wrapper_PSO(parameters: np.ndarray, columns: pd.Index,
+                                performance_metric: str, P: np.ndarray, EP: np.ndarray, area: np.float32, deltat, deltatout, t_model: np.ndarray, t_calibration: np.ndarray, Qobs: pd.Series, *args, **kwargs):
     """
     Wrapper written around the PDM model to allow calibration with pyswarms PSO.
     Based on NSE or mNSE
