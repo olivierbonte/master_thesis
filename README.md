@@ -7,7 +7,7 @@ To ensure proper working of the code, make a new conda environment from the `env
 ```
 conda env create -f environment.yml
 ```
-In this new environment, you can execute the github repository by either downloading the code as ZIP-file or by copying the repository with git on your local device. 
+In this new environment, you can execute the github repository by either downloading the code as ZIP-file or by copying the repository with git on your local device. Note that the environment is optimised for running tensorflow on GPU for a Windows Native system. To enable GPU-computation on your own device, please adapt the tensorflow related packages as specified in the [tensorflow documentation](https://www.tensorflow.org/install/pip#windows-native). 
 
 Alternatively, there is also the possibility to open this repository in a containerised cloud environment with binder:
  [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/olivierbonte/master_thesis/HEAD)
@@ -28,7 +28,7 @@ For accessing satellite data, the [OpenEO platform](https://openeo.org/) is used
 
 To use these computational resources, you will need to make an account at VITO. Instructions on how to do so can be found [here](https://docs.openeo.cloud/federation/#terrascope-registration). Note that this is required so that you can authenticate yourself for [OpenID Connect Authentication](https://openeo.org/documentation/1.0/python/#openid-connect-authentication). Note that even after this registration, it is a possibility that not enough computational resources will be allocated (especially for the computationally expensive $\gamma^0$). If one wishes to execute even the computationally expensive processes with OpenEO themselves, consider applying for a free trial or network of resources sponsoring through the [openEO Platform of ESA](https://openeo.cloud/). Note that you can check the progress of your batch jobs in the web editor via [openeoHUB](https://hub.openeo.org/): connect to VITO backend by clicking `Open in openEO Web Editor`. 
 
-Because of the potential difficulties in acquiring (all) the data via the OpenEO platform, the output of the notebooks can also be acquired via Zenodo. The repository is found [here]() and the notebook for downloading is `preprocessing_files/OpenEO_Zenodo.ipynb`. 
+Because of the potential difficulties in acquiring (all) the data via the OpenEO platform, the output of the notebooks can also be acquired via Zenodo. The repository is found [here](https://doi.org/10.5281/zenodo.7691342) and the notebook for downloading is `preprocessing_files/OpenEO_Zenodo.ipynb`. 
 
 ### 1.3 Processing spatial data to timeseries
 The satellite data retrieved above will be transformed to timeseries data by taking the spatial average per landuse cateogry. To execute this processing, execute the following notebook: `preprocessing_files/timeseries_master.ipynb` (which will execute `preprocessing_files/landuse_preprocess.py` and `preprocessing_files/timeseries_generation.py`)
