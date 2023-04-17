@@ -32,10 +32,11 @@ def tau_weighing(delta_t_abs: np.timedelta64, tau: np.timedelta64):
     W_t: float
         temporal weighing factor
     """
-    if delta_t_abs < tau / 2:
+    if delta_t_abs.astype('int') < tau.astype('int') / 2:
         W_t = 1
     elif delta_t_abs < tau:
-        W_t = (tau - delta_t_abs) / (tau / 2)
+        W_t = (tau.astype('int') - delta_t_abs.astype('int')) / \
+            (tau.astype('int') / 2)
     else:
         W_t = 0
     return W_t
@@ -370,6 +371,7 @@ def PDM(P: np.ndarray, EP: np.ndarray, t, area: np.float32, deltat, deltatout, p
         ######################################
 
         i = i + 1
+        # Note on the timesteps indexing: the model only starts using the forcings with index 1 (so the 2nd of the values). This is logical, as the rain falling between timestamp 0 and timestamp 1 is assigned to timestamp 1! So x[i-1] with forcing[i] => x[i] and y[i]! (x = state variables, y = output)
         istart = i
         for i in np.arange(istart, imax):
             i, Eiacc, V, qd, di, Cstar, S1, S3, pi, qb, qbm3s, qs, qsm3s, qmodm3s = core_execution(
@@ -404,7 +406,7 @@ def PDM(P: np.ndarray, EP: np.ndarray, t, area: np.float32, deltat, deltatout, p
 
         nan_fill_bis = ((len(Cstar) // (deltatout / deltat)) + 1) * \
             deltatout / deltat - len(Cstar)
-        
+
         # Cstar
         Cstar = np.append(Cstar, np.ones(int(nan_fill_bis)) * np.nan)
         Cstar = Cstar.reshape((-1, int(deltatout / deltat)))
