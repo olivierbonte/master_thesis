@@ -1,4 +1,6 @@
 # master_thesis
+*Note by the author: the repository is still work in progress. It is expected to be finalised (with full data accessibility and code reproducability) by the beginning of June 2023.*
+
 Code repository for source code of my master's thesis: Updating a conceptual rainfall-runoff model based on radar observation and machine learning.
 
 The main research ouput can be found in the Jupyter Notebook `Zwalm_OpenEO.ipynb`
