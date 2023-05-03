@@ -4,6 +4,7 @@ import pandas as pd
 import os
 import numba
 import warnings
+import dask
 from pathlib import Path
 from numba import jit
 from joblib import Parallel, delayed
@@ -408,7 +409,8 @@ def PDM(P: np.ndarray, EP: np.ndarray, t, area: np.float32, deltat, deltatout, p
             deltatout / deltat - len(Cstar)
 
         # Cstar
-        Cstar = np.append(Cstar, np.ones(int(nan_fill_bis)) * np.nan)
+        Cstar = np.append(Cstar, np.ones(int(nan_fill_bis))
+                          * np.nan)  # type:ignore
         Cstar = Cstar.reshape((-1, int(deltatout / deltat)))
         Cstar = np.nanmean(Cstar, axis=1)
         Cstar = Cstar[:len(tmod)]
@@ -491,7 +493,7 @@ def PDM_calibration_wrapper(parameters: np.ndarray, columns: pd.Index,
 
 
 def PDM_calibration_wrapper_PSO(parameters: np.ndarray, columns: pd.Index,
-                                performance_metric: str, P: np.ndarray, EP: np.ndarray, area: np.float32, deltat, deltatout, t_model: np.ndarray, t_calibration: np.ndarray, Qobs: pd.Series, *args, **kwargs):
+                                performance_metric: str, P: np.ndarray, EP: np.ndarray, area: np.float32, deltat, deltatout, t_model: np.ndarray, t_calibration: np.ndarray, Qobs: pd.Series, dask_bool=False, *args, **kwargs):
     """
     Wrapper written around the PDM model to allow calibration with pyswarms PSO.
     Based on NSE or mNSE
@@ -521,6 +523,8 @@ def PDM_calibration_wrapper_PSO(parameters: np.ndarray, columns: pd.Index,
         sequence of timesteps for which the model its performance metric will be computed
     Qobs: pd.Series
         Observatoinal flows in the desired time resolution
+    dask_bool: bool, default = Flase
+        if True, will use dask for parallelisation of the different particles (not sure if this works properly)
 
     Returns
     -------
@@ -535,12 +539,10 @@ def PDM_calibration_wrapper_PSO(parameters: np.ndarray, columns: pd.Index,
     else:
         raise ValueError('Only NSE and mNSE are defined as performance metric')
     performances = np.zeros(n_particles)
-    # import pdb; pdb.set_trace()
 
     def PDM_loop(i, parameters, P, EP, t_model, area, deltat, deltatout, t_calibration, Qobs, metric):
         param_temp = parameters[i, :]  # type:ignore
         param_temp = pd.DataFrame(param_temp.reshape(1, -1))
-        # import pdb; pdb.set_trace(),
         param_temp.columns = columns
         pd_out = PDM(P=P, EP=EP, t=t_model,
                      area=area, deltat=deltat, deltatout=deltatout,
@@ -549,9 +551,25 @@ def PDM_calibration_wrapper_PSO(parameters: np.ndarray, columns: pd.Index,
             'Time').loc[t_calibration, 'qmodm3s'].values  # type:ignore
         performance = metric(Qmod, Qobs[t_calibration].values)
         return performance
+    performances_list = []
+    performances_sub_list = []
     for i in range(n_particles):
-        performances[i] = PDM_loop(i, parameters, P, EP, t_model, area,
-                                   deltat, deltatout, t_calibration, Qobs, metric)
+        if not dask_bool:
+            performances[i] = PDM_loop(i, parameters, P, EP, t_model, area,
+                                       deltat, deltatout, t_calibration, Qobs, metric)
+        else:
+            delayed_result = dask.delayed(PDM_loop)(  # type:ignore
+                i, parameters, P, EP, t_model, area, deltat, deltatout, t_calibration, Qobs, metric
+            )
+            performances_sub_list.append(delayed_result)
+            if ((i % 4 == 0) and (i != 0)) or (i == n_particles - 1):  # parallelise per 4
+                performances_sub = dask.compute(  # type:ignore
+                    *performances_sub_list, scheduler='threads')
+                for i in range(len(performances_sub)):
+                    performances_list.append(performances_sub[i])
+                performances_sub_list = []
+    if dask_bool:
+        performances = np.array(performances_list)
     # performances_list = Parallel(n_jobs=-1)(delayed(PDM_loop)(
     # i, parameters, P, EP, t_model, area, deltat, deltatout,t_calibration,Qobs, metric
     # ) for i in range(n_particles))
