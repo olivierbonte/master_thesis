@@ -186,7 +186,7 @@ def ensemble_plot(Cstar, tfull, out_dict, n_std=2, fig=None, ax=None):
     return fig, ax
 
 
-def plot_FDC(Q, fig=None, ax=None, label=None, cutoff=0.02, cutoff_bool=True):
+def plot_FDC(Q, fig=None, ax=None, label=None, cutoff=0.02, cutoff_bool=True, *args, **kwargs):
     """
     Plotting the flow duration curve (flow exceedance probability curve) for a time series of flows (without NaNs)
 
@@ -210,12 +210,12 @@ def plot_FDC(Q, fig=None, ax=None, label=None, cutoff=0.02, cutoff_bool=True):
     Q_sorted = np.sort(Q_nonan)
     CDF_distribution = ECDF(Q_sorted)
     CDF = CDF_distribution(Q_sorted)
-    ax.plot(1 - CDF, Q_sorted, label=label)  # type:ignore
+    ax.plot(1 - CDF, Q_sorted, label=label, *args, **kwargs)  # type:ignore
     if cutoff_bool:
         ax.vlines(cutoff, ax.get_ylim()[0], ax.get_ylim()[  # type:ignore
             1], color='black', label=f'$p$ = {cutoff}')
     ax.set_yscale('log')  # type:ignore
-    ax.set_xlabel('Flow exceedance probability')  # type:ignore
+    ax.set_xlabel('Flow exceedance probability ($p$)')  # type:ignore
     ax.set_ylabel('$Q$ [m$^3$/s]')  # type:ignore
     ax.legend()  # type:ignore
     return fig, ax
