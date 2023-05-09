@@ -42,6 +42,8 @@ orb_dir_dummies = pd.get_dummies(features.Orbitdirection)
 orb_dir_dummies = orb_dir_dummies.set_index(features.index)
 features = pd.concat([features[cols], orb_dir_dummies], axis=1)
 # print(f'{features=}')
+#Update 09/05: drop the descending feature, one suffices (same information carried)
+features = features.drop('descending',axis = 1)
 
 # %% Run PDM
 deltat = np.array(1, dtype=np.float32)  # hour
