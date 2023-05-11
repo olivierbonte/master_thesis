@@ -219,3 +219,44 @@ def plot_FDC(Q, fig=None, ax=None, label=None, cutoff=0.02, cutoff_bool=True, *a
     ax.set_ylabel('$Q$ [m$^3$/s]')  # type:ignore
     ax.legend()  # type:ignore
     return fig, ax
+
+
+def plot_Cstar_model(y_train_hat, y_test_hat, t_train, t_test, Cstar, t_full, fig, ax):
+    """
+    Default plot for the retrieved Cstar observations
+
+
+    Parameters
+    ----------
+    y_train_hat: np.array
+        C_star model output for training
+    y_test_hat: np.array
+        C_star model output for testing
+    t_train: pandas.DatetimeIndex
+        Array with timestamps for training
+    t_test: pandas.Datetimeindex
+        Array with timestamps for testing
+    Cstar: pandas.Series
+        Series object with time as index and Cstar as feature
+    t_full: pandas.DatetimeIndex
+        Array with timestamps for Cstar plotting
+    fig: matplotlib.figure, default = None
+        figure object 
+    ax: matplotlib.axes, default = None
+        axes object
+
+    Returns
+    -------
+    fig: matplotlib.figure, default = None
+        figure object 
+    ax: matplotlib.axes, default = None
+        axes object
+    """
+    if not fig and not ax:
+        fig, ax = plt.subplots()
+    Cstar[t_full].plot(ax=ax, label='PDM')
+    ax.plot(t_train, y_train_hat, label='Train')  # type:ignore
+    ax.plot(t_test, y_test_hat, label='Test')  # type:ignore
+    ax.legend()  # type:ignore
+    ax.set_ylabel('$C^*$ [mm]')  # type:ignore
+    return fig, ax

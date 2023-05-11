@@ -18,11 +18,11 @@ if pad.name == "functions":
     pad_correct = pad.parent
     os.chdir(pad_correct)
 from functions.pre_processing import reshape_data, reshaped_to_train_test
-from functions.plotting_functions import plot_tf_history
+from functions.plotting_functions import plot_tf_history, plot_Cstar_model
 
 
 def general_sklearn_model(function, X_train, X_test, y_train, y_test,
-                          t_train, t_test, Cstar, normalisation=False,seq_length = None,print_output=True, return_predictions = False, save_predictions = False, pad = None):
+                          t_train, t_test, Cstar, normalisation=False,seq_length = None,print_output=True, return_predictions = False, save_predictions = False, pad = None, fig = None, ax = None):
     """Wrapper around a general sklearn model to facilitate easy training, 
     predicting, scoring and visualisation
 
@@ -57,6 +57,11 @@ def general_sklearn_model(function, X_train, X_test, y_train, y_test,
         If True, predictions saved as pickle  and csv to pad
     pad: pathlib.Path, default = None
         if save_predictions is True, specify the path to save to here
+    fig: matplotlib.figure
+        figure object 
+    ax: matplotlib.axes
+        axes object
+        
     Returns
     -------
     func
@@ -69,9 +74,6 @@ def general_sklearn_model(function, X_train, X_test, y_train, y_test,
         figure object 
     ax: matplotlib.axes
         axes object
-    
-    
-
     """
     
     # t_index_train = X_train.index
@@ -128,16 +130,11 @@ def general_sklearn_model(function, X_train, X_test, y_train, y_test,
         y_test_hat = scaler_y.inverse_transform(y_test_hat)  # type:ignore
 
     if print_output:
-        fig, ax = plt.subplots()
-        Cstar[t_full].plot(ax=ax)
-        ax.plot(t_train, y_train_hat, label='Train')
-        ax.plot(t_test, y_test_hat, label='Test')
-        ax.legend()
-        ax.set_ylabel('C* [mm]')
+        fig, ax = plot_Cstar_model(y_train_hat, y_test_hat, t_train, t_test, Cstar, t_full, fig, ax)
         if normalisation:
-            ax.set_title('Normalised ' + str(function))
+            ax.set_title('Normalised ' + str(function))# type:ignore
         else:
-            ax.set_title(str(function))
+            ax.set_title(str(function))# type:ignore
     else:
         fig = None
         ax = None
