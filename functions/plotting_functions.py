@@ -169,20 +169,60 @@ def plot_tf_history(history, plot_object="loss"):
     return fig, ax
 
 
-def ensemble_plot(Cstar, tfull, out_dict, n_std=2, fig=None, ax=None):
+def ensemble_plot(Cstar, tfull, out_dict, fig=None, ax=None):
+    """
+    One aggergate plot displaying median, minimum and maximum prediction of the ensemble at each time step
+
+    Inputs
+    -------
+    Cstar: pandas.Series
+        Series object with time as index and Cstar as feature
+    tfull: pandas.DatetimeIndex
+        Array with timestamps for for training and testing features
+    fig: matplotlib.figure.Figure, default = None
+        Provide if one wants to plot on existing fig object
+    ax: matplotlib.pyplot.axis, default = None
+        Provide if one want to plot on existing ax object
+    Returns
+    -------
+    fig: matplotlib.figure.Figure
+
+    ax: matplotlib.pyplot.axis
+    """
+    # calculate the median and percentiles
+    med_y_train = np.median(out_dict['y_train_hat'], axis=1)
+    med_y_test = np.median(out_dict['y_test_hat'], axis=1)
+    min_y_train = np.min(out_dict['y_train_hat'], axis=1)
+    max_y_train = np.max(out_dict['y_train_hat'], axis=1)
+    min_y_test = np.min(out_dict['y_test_hat'], axis=1)
+    max_y_test = np.max(out_dict['y_test_hat'], axis=1)
+
     if (fig == None) and (ax == None):
-        fig, ax = plt.subplots(figsize=(9, 7))
-    Cstar[tfull].plot(ax=ax)
-    ax.plot(out_dict['t_train'], out_dict['mean_y_train_hat'],  # type:ignore
-            label='Mean training set')
-    ax.plot(out_dict['t_test'], out_dict['mean_y_test_hat'],  # type:ignore
-            label='Mean test set')
-    ax.fill_between(out_dict['t_train'], out_dict['mean_y_train_hat'] - n_std * out_dict['sd_y_train_hat'],  # type:ignore
-                    out_dict['mean_y_train_hat'] + n_std * out_dict['sd_y_train_hat'], color='grey', alpha=0.5)
-    ax.fill_between(out_dict['t_test'], out_dict['mean_y_test_hat'] - n_std * out_dict['sd_y_test_hat'],  # type:ignore
-                    out_dict['mean_y_test_hat'] + n_std * out_dict['sd_y_test_hat'], color='grey', alpha=0.5)
+        fig, ax = plt.subplots(figsize=(9, 4))
+    Cstar[tfull].plot(ax=ax, label='PDM')
+    ax.plot(out_dict['t_train'], med_y_train,  # type:ignore
+            label='Median train')
+    ax.plot(out_dict['t_test'], med_y_test,  # type:ignore
+            label='Median test')
+    ax.fill_between(out_dict['t_train'], min_y_train,  # type:ignore
+                    max_y_train, color='lightgrey', label='[min,max]')
+    ax.fill_between(out_dict['t_test'], min_y_test,  # type:ignore
+                    max_y_test, color='lightgrey')
+    ax.set_xlabel('Time')  # type:ignore
+    ax.set_ylabel('$C^*$ [mm]')  # type:ignore
     ax.legend()  # type:ignore
-    ax.set_title(r'$\mu \pm' + f'{n_std}' + r'\sigma$')  # type:ignore
+
+    # Old code for mean pm standard deviation
+    # ax.plot(out_dict['t_train'], out_dict['mean_y_train_hat'],  # type:ignore
+    #         label='Mean training set')
+    # ax.plot(out_dict['t_test'], out_dict['mean_y_test_hat'],  # type:ignore
+    #         label='Mean test set')
+    # ax.fill_between(out_dict['t_train'], out_dict['mean_y_train_hat'] - n_std * out_dict['sd_y_train_hat'],  # type:ignore
+    #                 out_dict['mean_y_train_hat'] + n_std * out_dict['sd_y_train_hat'], color='grey', alpha=0.5)
+    # ax.fill_between(out_dict['t_test'], out_dict['mean_y_test_hat'] - n_std * out_dict['sd_y_test_hat'],  # type:ignore
+    #                 out_dict['mean_y_test_hat'] + n_std * out_dict['sd_y_test_hat'], color='grey', alpha=0.5)
+    # ax.legend()  # type:ignore
+    # ax.set_title(r'$\mu \pm' + f'{n_std}' + r'\sigma$')  # type:ignore
     return fig, ax
 
 
@@ -252,8 +292,8 @@ def plot_Cstar_model(y_train_hat, y_test_hat, t_train, t_test, Cstar, t_full, fi
     ax: matplotlib.axes, default = None
         axes object
     """
-    if not fig and not ax:
-        fig, ax = plt.subplots()
+    if (fig == None) and (ax == None):
+        fig, ax = plt.subplots()  # type:ignore
     Cstar[t_full].plot(ax=ax, label='PDM')
     ax.plot(t_train, y_train_hat, label='Train')  # type:ignore
     ax.plot(t_test, y_test_hat, label='Test')  # type:ignore
