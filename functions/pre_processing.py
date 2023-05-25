@@ -371,7 +371,7 @@ def retime_SAR(y_data, features):
     y_data: pandas.DataFrame
         Dataframe with both C* and time as an idex (with name 't')
     features: pandas.DataFrame
-        DataFrame containing the ascending and descending column of the features combined witht time as index
+        DataFrame containing the ascending and descending column of the features combined with time as index
 
     Returns
     -------
@@ -380,8 +380,8 @@ def retime_SAR(y_data, features):
     """
     t_asc = features.loc[features['ascending'] == 1, :].index.map(lambda t:
                                                                   t.replace(hour=18))
-    t_desc = features.loc[features['descending'] == 1, :].index.map(lambda t:
-                                                                    t.replace(hour=6))
+    t_desc = features.loc[features['ascending'] == 0, :].index.map(lambda t:
+                                                                   t.replace(hour=6))
     time_hour = t_asc.union(t_desc)
     t_begin = y_data.index[0]
     t_end = y_data.index[-1].replace(hour=23, minute=59, second=59)
