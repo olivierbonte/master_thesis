@@ -42,14 +42,22 @@ y_linreg_hat_nf = pd.concat([y_linreg_hat_train_nf, y_linreg_hat_test_nf])
 y_linreg_hat_nf = retime_SAR(y_linreg_hat_nf, X_full_all)
 
 # Ridge regression: window no time
-y_ridge_w_hat_train = pd.read_pickle(
-    ml_obs_op_pad / 'ridge/window/y_train_hat.pickle')
-y_ridge_w_hat_test = pd.read_pickle(
-    ml_obs_op_pad / 'ridge/window/y_test_hat.pickle')
-y_ridge_w_hat = pd.concat([y_ridge_w_hat_train, y_ridge_w_hat_test])
-y_ridge_w_hat = retime_SAR(y_ridge_w_hat, X_full_all)
+# y_ridge_w_hat_train = pd.read_pickle(
+#     ml_obs_op_pad / 'ridge/window/y_train_hat.pickle')
+# y_ridge_w_hat_test = pd.read_pickle(
+#     ml_obs_op_pad / 'ridge/window/y_test_hat.pickle')
+# y_ridge_w_hat = pd.concat([y_ridge_w_hat_train, y_ridge_w_hat_test])
+# y_ridge_w_hat = retime_SAR(y_ridge_w_hat, X_full_all)
 # y_ridge_w_hat_train = retime_SAR(y_ridge_w_hat_train, X_full_all)
 # y_ridge_w_hat_test = retime_SAR(y_ridge_w_hat_test, X_full_all)
+
+# Lasso regression: window no time
+y_lasso_w_hat_train = pd.read_pickle(
+    ml_obs_op_pad / 'ridge/window/y_train_hat.pickle')
+y_lasso_w_hat_test = pd.read_pickle(
+    ml_obs_op_pad / 'ridge/window/y_test_hat.pickle')
+y_lasso_w_hat = pd.concat([y_lasso_w_hat_train, y_lasso_w_hat_test])
+y_lasso_w_hat = retime_SAR(y_lasso_w_hat, X_full_all)
 
 # Linear SVR
 y_SVR_lin_hat_train = pd.read_pickle(
@@ -73,18 +81,23 @@ y_GPR_hat = retime_SAR(y_GPR_hat, X_full_all)
 # %% Save retimed C* to pickle
 
 y_linreg_hat.to_pickle(
-    ml_obs_op_pad / 'lin_reg/full_data/y_hat_retimed.pickle')
+    ml_obs_op_pad / 'lin_reg/full_data/y_hat_retimed.pickle'
+)
 y_linreg_hat_nt.to_pickle(
-    ml_obs_op_pad / 'lin_reg/full_data_no_time/y_hat_retimed.pickle')
+    ml_obs_op_pad / 'lin_reg/full_data_no_time/y_hat_retimed.pickle'
+)
 y_linreg_hat_nf.to_pickle(
     ml_obs_op_pad / 'lin_reg/full_data_no_forest/y_hat_retimed.pickle'
 )
-y_ridge_w_hat.to_pickle(
-    ml_obs_op_pad / 'ridge/window/y_hat_retimed.pickle')
+y_lasso_w_hat.to_pickle(
+    ml_obs_op_pad / 'lasso/window/y_hat_retimed.pickle'
+)
 y_SVR_lin_hat.to_pickle(
-    ml_obs_op_pad / 'SVR/linear/y_hat_retimed.pickle')
+    ml_obs_op_pad / 'SVR/linear/y_hat_retimed.pickle'
+)
 y_GPR_hat.to_pickle(
-    ml_obs_op_pad / 'GPR/y_hat_retimed.pickle')
+    ml_obs_op_pad / 'GPR/y_hat_retimed.pickle'
+)
 # y_linreg_hat_train.to_pickle(
 #     ml_obs_op_pad / 'lin_reg/full_data/y_train_hat_retimed.pickle')
 # y_linreg_hat_test.to_pickle(
@@ -101,5 +114,3 @@ y_GPR_hat.to_pickle(
 #     ml_obs_op_pad / 'GPR/y_train_hat_retimed.pickle')
 # y_GPR_hat_test.to_pickle(
 #     ml_obs_op_pad / 'GPR/y_test_hat_retimed.pickle')
-
-# %% Krijg
