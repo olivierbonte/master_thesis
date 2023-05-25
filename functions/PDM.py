@@ -2,7 +2,6 @@ import numpy as np
 import scipy
 import pandas as pd
 import os
-import numba
 import warnings
 import dask
 from pathlib import Path
@@ -19,12 +18,12 @@ from functions.performance_metrics import NSE, mNSE
 
 def tau_weighing(delta_t_abs: np.timedelta64, tau: np.timedelta64):
     """
-    Calculates the temoral weighting function for Newtonian Nudging
+    Calculates the temporal weighting function for Newtonian Nudging
 
     Parameters
     ----------
     delta_t_abs: numpy.timedelta64
-        The absoltue difference in hours between hour of observatoin and hour of assimilation
+        The absolute difference in hours between hour of observation and hour of assimilation
     tau: numpy.timedelta64
         The number of hours before and after the time of observation for which to apply DA.
 
@@ -115,7 +114,7 @@ def PDM(P: np.ndarray, EP: np.ndarray, t, area: np.float32, deltat, deltatout, p
     DA: bool, default = False
         If True, data assimilation(DA) via Newtonian Nudging is exectued for C*. Extra arguments regarding the algorithm and the observational data must be provided below. If False, all arguments below can be ignored
     Cstar_obs: numpy.ndarray, default = None
-        The observed C*, as calculated by the observation operator models
+        The observed C*, as calculated by the observation operator models. Only used if DA = True
     t_obs: numpy.ndarray, default = None
         Timestamps of when the observed C* occur (dtype = 'datetime64[ns]')
     gamma: float, default = None 
