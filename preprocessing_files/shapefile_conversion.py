@@ -9,7 +9,7 @@ if pad.name == "preprocessing_files":
     pad_correct = pad.parent
     os.chdir(pad_correct)
 # os.system('zenodo_get 10.5281/zenodo.7688784')
-os.system('zenodo_get 10.5281/zenodo.7688784')
+os.system('zenodo_get 10.5281/zenodo.7971288')
 with zipfile.ZipFile("data_github.zip", 'r') as zip_ref:
     zip_ref.extractall('data_github')
 with zipfile.ZipFile("data.zip", 'r') as zip_ref:
