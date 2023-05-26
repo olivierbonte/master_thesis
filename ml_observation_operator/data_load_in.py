@@ -185,7 +185,9 @@ pd_zwalm_out_day.to_pickle("data/Zwalm_data/pd_zwalm_out_day.pkl")
 #only download if the zip folders does not already exist!
 zip_folder = Path('data/ml_obs_op_data.zip')
 if not os.path.exists(zip_folder):
-    os.run("zenodo_get data 10.5281/zenodo.7973569")
+    os.system("zenodo_get -o data 10.5281/zenodo.7973569")
+ml_obs_pad = Path('data/ml_obs_op_data')
+if not os.path.exists(ml_obs_pad):
     with zipfile.ZipFile("data/ml_obs_op_data.zip", 'r') as zip_ref:
         zip_ref.extractall('data/ml_obs_op_data')
     
