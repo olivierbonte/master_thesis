@@ -3,6 +3,7 @@ import pandas as pd
 import geopandas as gpd
 import numpy as np
 import os
+import zipfile
 from pathlib import Path
 from datetime import datetime
 pad = Path(os.getcwd())
@@ -179,3 +180,12 @@ Cstar.to_pickle(ML_data_pad / "Cstar.pkl")
 
 # export pd_zwalm_out_day
 pd_zwalm_out_day.to_pickle("data/Zwalm_data/pd_zwalm_out_day.pkl")
+
+# Get data from Zenodo with models/hyperparameters
+#only download if the zip folders does not already exist!
+zip_folder = Path('data/ml_obs_op_data.zip')
+if not os.path.exists(zip_folder):
+    os.run("zenodo_get data 10.5281/zenodo.7973569")
+    with zipfile.ZipFile("data/ml_obs_op_data.zip", 'r') as zip_ref:
+        zip_ref.extractall('data/ml_obs_op_data')
+    
