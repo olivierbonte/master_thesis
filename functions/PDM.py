@@ -8,7 +8,7 @@ from pathlib import Path
 from numba import jit
 from joblib import Parallel, delayed
 pad = Path(os.getcwd())
-if pad.name != "Python":
+if pad.name == "functions":
     pad_correct = pad.parent  # Path("../../Python")
     os.chdir(pad_correct)
 from functions.performance_metrics import NSE, mNSE
