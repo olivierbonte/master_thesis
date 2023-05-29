@@ -73,7 +73,7 @@ def NewtonianNudging(Cstar_min, Cstar_obs, gamma, kappa, delta_t, tau):
 # Main PDM Code
 
 
-def PDM(P: np.ndarray, EP: np.ndarray, t, area: np.float32, deltat, deltatout, parameters: pd.DataFrame, m: int = 3, DA=False, Cstar_obs=None, t_obs=None, gamma=None, kappa=None, tau=None):
+def PDM(P: np.ndarray, EP: np.ndarray, t, area: np.float32, deltat, deltatout, parameters: pd.DataFrame, m: int = 3, DA=False, Cstar_obs=None, t_obs=None, gamma=None, kappa=None, tau=None, DA_experiment=False):
     """Probability Distributed Model from "The PDM rainfall-runoff model" by Moore (2007).
     References to equations in this paper are made with their respective equation number.
     From Appendix A, only formula referring to the Pareto Distribution are used.
@@ -123,6 +123,8 @@ def PDM(P: np.ndarray, EP: np.ndarray, t, area: np.float32, deltat, deltatout, p
         The Nudging factor (between 0 and 1)
     tau: numpy.timedelta64, default = None
         The number of hours before and after the time of observation for which to apply DA. e.g. for 12 hours specify `np.timedelta64(12,'h')`. Always specify `h` when specifying tau
+    DA_experiment: bool, default = False
+        if True, experiments with updating S1 instead of C*
 
     Returns
     -------
@@ -235,6 +237,7 @@ def PDM(P: np.ndarray, EP: np.ndarray, t, area: np.float32, deltat, deltatout, p
             condition = condition + 1
 
         if condition == 2:
+            # these are only temporary Cstar and S1 values needed to calculate runoff generation!
             Cstar_t = Cstar[i - 1]
             Cstar_t_plus_deltat = Cstar[i - 1] + pi[i] * deltat  # (5)
             S1t = cmin + (Smax - cmin) * (1 - ((cmax - Cstar_t) /
@@ -377,7 +380,10 @@ def PDM(P: np.ndarray, EP: np.ndarray, t, area: np.float32, deltat, deltatout, p
             i, Eiacc, V, qd, di, Cstar, S1, S3, pi, qb, qbm3s, qs, qsm3s, qmodm3s = core_execution(
                 i, Eiacc, V, qd, di, Cstar, S1, S3, pi, qb, qbm3s, qs, qsm3s, qmodm3s)
             if DA:
-                Cstar_min = Cstar[i]
+                if DA_experiment:
+                    Cstar_min = S1[i]
+                else:
+                    Cstar_min = Cstar[i]
                 tmod_i = t_hour[i]
                 t_assimilated_index = np.abs(tmod_i - t_obs).argmin()
                 t_assimilated = t_obs[t_assimilated_index]  # type:ignore
@@ -385,7 +391,10 @@ def PDM(P: np.ndarray, EP: np.ndarray, t, area: np.float32, deltat, deltatout, p
                 delta_t = tmod_i - t_assimilated
                 Cstar_plus = NewtonianNudging(
                     Cstar_min, Cstar_obs_i, gamma, kappa, delta_t, tau)
-                Cstar[i] = Cstar_plus
+                if DA_experiment:
+                    S1[i] = Cstar_plus
+                else:
+                    Cstar[i] = Cstar_plus
         return qmodm3s, Cstar, S1, S3
 
     qmodm3s, Cstar, S1, S3 = loop_start()
@@ -394,6 +403,7 @@ def PDM(P: np.ndarray, EP: np.ndarray, t, area: np.float32, deltat, deltatout, p
     tmod = pd.date_range(t[0], t[-1], freq=freq_hour)
 
     # Suppress mean of empty slice warning
+    # Could be more efficient using pandas resampling
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=RuntimeWarning)
         # qmod output
