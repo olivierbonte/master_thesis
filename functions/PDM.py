@@ -117,7 +117,7 @@ def PDM(P: np.ndarray, EP: np.ndarray, t, area: np.float32, deltat, deltatout, p
         The observed C*, as calculated by the observation operator models. Only used if DA = True
     t_obs: numpy.ndarray, default = None
         Timestamps of when the observed C* occur (dtype = 'datetime64[ns]')
-    gamma: float, default = None 
+    gamma: float, default = None
         the observational uncertainty, as of now fixed for all timestamps (between 0 and 1)
     kappa: float, default = None
         The Nudging factor (between 0 and 1)
@@ -218,6 +218,18 @@ def PDM(P: np.ndarray, EP: np.ndarray, t, area: np.float32, deltat, deltatout, p
     @jit(nopython=True, error_model='numpy')
     def core_execution(i, Eiacc, V, qd, di, Cstar, S1, S3, pi, qb, qbm3s, qs, qsm3s, qmodm3s):
         ### PROBABILITY DISTRIBUTED SOIL-MOISTURE STORAGE S1 ###
+        # Update S1(t) if doing DA!
+        if DA:
+            S1[i - 1] = max(
+                min(
+                    cmin + (Smax - cmin) *
+                    (1 - ((cmax - Cstar[i - 1]) /
+                     (cmax - cmin))**(b_param + 1)),
+                    Smax
+                ),
+                0
+            )
+
         # Acutal Evaporation
         Eiacc[i] = EP[i] * (1 - ((Smax - S1[i - 1]) / Smax)**be)  # (8)
         # Drainage to groundwater
@@ -231,8 +243,37 @@ def PDM(P: np.ndarray, EP: np.ndarray, t, area: np.float32, deltat, deltatout, p
         condition = 0
         if pi[i] > 0:  # net rainfall
             condition = condition + 1
+
+        # CODE STIJN VAN HOEY IDEE: i-1 = t, i = t + dt for the reservoirs, to be investigated later
+        # if not DA:
+        #     Cstar[i - 1] = max(
+        #         min(
+        #             cmin + (cmax - cmin) * (1 -
+        #                                     ((Smax - S1[i - 1]) / (Smax - cmin))**(1 / (b_param + 1))),
+        #             cmax
+        #         ),
+        #         0
+        #     )
+
+        # Cstar[i] = max(
+        #     min(Cstar[i - 1] + pi[i] * deltat, cmax),
+        #     0
+        # )
+        # S1[i] = max(
+        #     min(
+        #         cmin + (Smax - cmin) *
+        #         (1 - ((cmax - Cstar[i]) / (cmax - cmin))**(b_param + 1)),
+        #         Smax
+        #     ),
+        #     0
+        # )
+        # V[i] = max(pi[i] * deltat - (S1[i] - S1[i - 1]), 0)
+
+        # S1[i] = min(max(S1[i - 1] + pi[i] * deltat - V[i], 0), Smax)
+        # EINDE CODE STIJN VAN HOEY
+
         # if C[i-1] > cmin #Original, I believe non correct
-        # cf. Moore en bell (2002) OWN IDEA!!!
+        # #cf. Moore en bell (2002) OWN IDEA!!!
         if Cstar[i - 1] + pi[i] * deltat > cmin:
             condition = condition + 1
 
@@ -264,7 +305,7 @@ def PDM(P: np.ndarray, EP: np.ndarray, t, area: np.float32, deltat, deltatout, p
             S1[i] = 0
 
         # Update Cstar: NOT based on (5) here (not 100% sure why),
-        # but on Appendix A (relates S1 to C)
+        # but on Appendix A (relates S1 to C).
         Cstar[i] = cmin + (cmax - cmin) * (1 -
                                            ((Smax - S1[i]) / (Smax - cmin))**(1 / (b_param + 1)))
         if Cstar[i] > cmax:
@@ -496,7 +537,8 @@ def PDM_calibration_wrapper(parameters: np.ndarray, columns: pd.Index,
         metric = mNSE
     else:
         raise ValueError('Only NSE and mNSE are defined as performance metric')
-    Qmod = pd_out.set_index('Time').loc[t_calibration, 'qmodm3s'].values
+    Qmod = pd_out.set_index(
+        'Time').loc[t_calibration, 'qmodm3s'].values  # type:ignore
     performance = metric(Qmod, Qobs[t_calibration].values)
     return performance
 
