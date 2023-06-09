@@ -1,6 +1,6 @@
 # master_thesis
 
-Code repository for source code of my master's thesis: **Updating a conceptual rainfall-runoff model based on radar observation and machine learning.** This work was also presented at the EGU23 General Assembly in Vienna, the abstract of which can be found [here](https://doi.org/10.5194/egusphere-egu23-8698). Both the poster (`Poster_EGU_Olivier_Bonte_22_04.pdf`) and the dissertation itself (`Thesis_EN_BW_Olivier_Bonte_..._....pdf`) can be found in the `docs` folder.   
+Code repository for source code of my master's thesis: **Updating a conceptual rainfall-runoff model based on radar observation and machine learning.** This work was also presented at the EGU23 General Assembly in Vienna, the abstract of which can be found [here](https://doi.org/10.5194/egusphere-egu23-8698). Both the poster (`Poster_EGU_Olivier_Bonte_22_04.pdf`) and the dissertation itself (`Thesis_EN_BW_Olivier_Bonte_09_06.pdf`) can be found in the `docs` folder.   
 
 After the software setup, code will be described in order of the chapters of the dissertation. **To guarantee reproducibility, please follow the order below when executing the notebooks, as each chapter (and its corresponding notebook(s)) depend on previous outputs.**
 ## <ins> Software setup 
